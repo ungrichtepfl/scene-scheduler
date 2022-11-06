@@ -1,4 +1,5 @@
 use calamine::{open_workbook, Error, Reader, Xlsx};
+use std::path::Path;
 
 fn read_excel(path: &str, sheet: &str) -> Result<(), Error> {
     let mut workbook: Xlsx<_> = open_workbook(path)?;
@@ -13,11 +14,19 @@ fn read_excel(path: &str, sheet: &str) -> Result<(), Error> {
 }
 
 fn main() {
-    let path = std::path::Path::new(file!())
+    let root_dir = Path::new(file!())
         .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join("tests/data/test_scedule.xlsx");
-    read_excel(path.to_str().unwrap(), "Sheet1").unwrap();
+        .and_then(|p| p.parent())
+        .expect("Root file path not found. File has probably moved.");
+    let test_file_path = root_dir.join("tests/data/test_scedule.xlsx");
+    let sheet_name = "Sheet1";
+    if let Err(e) = read_excel(
+        test_file_path
+            .to_str()
+            .expect("Check file name, wrong UTF-8 encoding for this OS."),
+        sheet_name,
+    ) {
+        println!("Error while reading excel: {e}");
+        std::process::exit(1);
+    }
 }
