@@ -25,6 +25,14 @@ impl fmt::Display for ExcelParseError {
 impl Error for ExcelParseError {}
 
 #[derive(Debug)]
+pub struct SceneEntry {
+    pub role: String,
+    pub who: String,
+    pub scenes: Vec<String>,
+    pub silent_play: Vec<bool>,
+}
+
+#[derive(Debug)]
 pub struct ScheduleEntry {
     pub date: Option<NaiveDate>,
     pub start_stop_time: (NaiveTime, Option<NaiveTime>),
@@ -182,6 +190,55 @@ pub fn parse_schedule_plan_content(
     Ok(add_corresponding_stop_time(scedule_entries))
 }
 
+fn parse_scene_plan_content(
+    excel_range: Range<DataType>,
+) -> Result<Vec<SceneEntry>, ExcelParseError> {
+    let mut all_scenes = vec![];
+    let mut scene_entries = vec![];
+    let scene_start_index = 2;
+    for (i, row) in excel_range.rows().enumerate() {
+        if i == 0 {
+            for scene in &row[scene_start_index..] {
+                match scene {
+                    DataType::String(x) => all_scenes.push(x.to_owned()),
+                    DataType::Float(x) => all_scenes.push(x.to_string()),
+                    _ => todo!("Error handling all scenes"), // TODO: Error handling all scenes
+                }
+            }
+            dbg!(&all_scenes);
+        } else {
+            let role = match &row[0] {
+                DataType::String(x) => x.clone(),
+                _ => todo!("Error handling role"), // TODO: Error handling role
+            };
+            let who = match &row[1] {
+                DataType::String(x) => x.clone(),
+                _ => todo!("Error handling who"), // TODO: Error handling who
+            };
+            let mut scenes_for_current_role = vec![];
+            let mut silent_play = vec![];
+            for (i, scene) in row[scene_start_index..].iter().enumerate() {
+                if let DataType::String(mark) = scene {
+                    if mark.contains("x") {
+                        scenes_for_current_role.push(all_scenes[i].clone());
+                        silent_play.push(false);
+                    } else if mark.contains("-") {
+                        scenes_for_current_role.push(all_scenes[i].clone());
+                        silent_play.push(true);
+                    }
+                }
+            }
+            scene_entries.push(SceneEntry {
+                role,
+                who,
+                scenes: scenes_for_current_role,
+                silent_play,
+            })
+        }
+    }
+    Ok(scene_entries)
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let root_dir = Path::new(file!()).parent().and_then(|p| p.parent()).expect(
         format!(
@@ -191,15 +248,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         .as_str(),
     );
     let test_file_path = root_dir.join("tests/data/test_scedule.xlsx");
-    let sheet_num = 0;
-    let excel_range = read_excel(
-        test_file_path
-            .to_str()
-            .expect("Check file name, wrong UTF-8 encoding for this os."),
-        sheet_num,
-    )?;
-    let scedule_entries = parse_schedule_plan_content(&excel_range)?;
+    let test_file_path_str = test_file_path
+        .to_str()
+        .expect("Check file name, wrong UTF-8 encoding for this os.");
+
+    let scedule_sheet_num = 0;
+    let scedule_excel_range = read_excel(test_file_path_str, scedule_sheet_num)?;
+    let scedule_entries = parse_schedule_plan_content(&scedule_excel_range)?;
     dbg!(scedule_entries);
+    let scene_sheet_num = 1;
+    let scene_excel_range = read_excel(test_file_path_str, scene_sheet_num)?;
+    let scene_entries = parse_scene_plan_content(scene_excel_range)?;
+    dbg!(scene_entries);
 
     Ok(())
 }
