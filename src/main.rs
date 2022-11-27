@@ -40,9 +40,34 @@ pub fn get_scedule_entry(date: &String, time: &String, scenes: &String) -> Sched
     }
 }
 fn parse_date(date: &String) -> Option<NaiveDate> {
-    //TODO:
+    if !["Mo.", "Di.", "Mi.", "Do.", "Fr.", "Sa.", "So."]
+        .iter()
+        .any(|s| date.contains(s))
+    {
+        return None;
+    }
+    let english_date = change_german_days_to_englisch(date);
+    Some(NaiveDate::parse_from_str(english_date.trim(), "%a. %_d.%_m.%y").unwrap())
+}
 
-    Some(chrono::offset::Local::now().date_naive())
+fn change_german_days_to_englisch(date: &String) -> String {
+    if date.contains("Mo") {
+        date.replace("Mo", "Mon")
+    } else if date.contains("Di") {
+        date.replace("Di", "Tue")
+    } else if date.contains("Mi") {
+        date.replace("Mi", "Wed")
+    } else if date.contains("Do") {
+        date.replace("Do", "Thu")
+    } else if date.contains("Fr") {
+        date.replace("Fr", "Fri")
+    } else if date.contains("Sa") {
+        date.replace("Sa", "Sat")
+    } else if date.contains("So") {
+        date.replace("So", "Sun")
+    } else {
+        date.clone()
+    }
 }
 
 fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
