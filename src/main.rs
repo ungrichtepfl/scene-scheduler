@@ -142,6 +142,25 @@ pub fn read_excel(path: &str, sheet_num: usize) -> Result<Range<DataType>, calam
     Ok(range)
 }
 
+fn get_schedule_to_scene_entry<'a>(
+    schedule_entries: &'a Vec<ScheduleEntry>,
+    scene_entries: &'a Vec<SceneEntry>,
+) -> Vec<(&'a ScheduleEntry, &'a SceneEntry)> {
+    let mut schedule_to_scene_entries = vec![];
+    for schedule_entry in schedule_entries {
+        for scene_entry in scene_entries {
+            if scene_entry
+                .scenes
+                .iter()
+                .any(|s| schedule_entry.scenes.contains(s))
+            {
+                schedule_to_scene_entries.push((schedule_entry, scene_entry));
+            }
+        }
+    }
+    schedule_to_scene_entries
+}
+
 pub fn parse_schedule_plan_content(
     excel_range: &Range<DataType>,
 ) -> Result<Vec<ScheduleEntry>, ExcelParseError> {
@@ -255,11 +274,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let scedule_sheet_num = 0;
     let scedule_excel_range = read_excel(test_file_path_str, scedule_sheet_num)?;
     let scedule_entries = parse_schedule_plan_content(&scedule_excel_range)?;
-    dbg!(scedule_entries);
+    dbg!(&scedule_entries);
     let scene_sheet_num = 1;
     let scene_excel_range = read_excel(test_file_path_str, scene_sheet_num)?;
     let scene_entries = parse_scene_plan_content(scene_excel_range)?;
-    dbg!(scene_entries);
+    dbg!(&scene_entries);
+    let schedule_to_scene_entries = get_schedule_to_scene_entry(&scedule_entries, &scene_entries);
+    dbg!(schedule_to_scene_entries);
 
     Ok(())
 }
