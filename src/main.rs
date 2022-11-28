@@ -39,7 +39,7 @@ pub struct ScheduleEntry {
     pub scenes: Vec<String>,
 }
 
-pub fn get_scedule_entry(date: &String, time: &String, scenes: &String) -> ScheduleEntry {
+pub fn get_schedule_entry(date: &String, time: &String, scenes: &String) -> ScheduleEntry {
     dbg!(date, time, scenes);
     ScheduleEntry {
         date: parse_date(date),
@@ -96,38 +96,38 @@ fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
     }
 }
 
-fn add_corresponding_stop_time(scedule_entries: Vec<ScheduleEntry>) -> Vec<ScheduleEntry> {
-    if scedule_entries.len() <= 1 {
-        return scedule_entries;
+fn add_corresponding_stop_time(schedule_entries: Vec<ScheduleEntry>) -> Vec<ScheduleEntry> {
+    if schedule_entries.len() <= 1 {
+        return schedule_entries;
     }
 
-    dbg!(scedule_entries.len());
-    let mut previous_start_time = scedule_entries.last().unwrap().start_stop_time.0.clone();
-    let mut previous_date = scedule_entries.last().unwrap().date.clone();
-    let mut new_scedule_entries = vec![];
+    dbg!(schedule_entries.len());
+    let mut previous_start_time = schedule_entries.last().unwrap().start_stop_time.0.clone();
+    let mut previous_date = schedule_entries.last().unwrap().date.clone();
+    let mut new_schedule_entries = vec![];
 
-    for (i, entry) in scedule_entries.into_iter().rev().enumerate() {
+    for (i, entry) in schedule_entries.into_iter().rev().enumerate() {
         let previous_date_tmp = entry.date.clone();
         let previous_start_time_tmp = entry.start_stop_time.0.clone();
         if !previous_date.eq(&entry.date) || i == 0 {
-            new_scedule_entries.push(entry);
+            new_schedule_entries.push(entry);
         } else {
             if entry.start_stop_time.1.is_none() {
-                new_scedule_entries.push(ScheduleEntry {
+                new_schedule_entries.push(ScheduleEntry {
                     start_stop_time: (entry.start_stop_time.0, Some(previous_start_time)),
                     ..entry
                 })
             } else {
-                new_scedule_entries.push(entry);
+                new_schedule_entries.push(entry);
             }
         }
         previous_date = previous_date_tmp;
         previous_start_time = previous_start_time_tmp;
     }
-    dbg!(new_scedule_entries.len());
+    dbg!(new_schedule_entries.len());
 
-    new_scedule_entries.reverse();
-    new_scedule_entries
+    new_schedule_entries.reverse();
+    new_schedule_entries
 }
 
 fn parse_scenes(scenes: &String) -> Vec<String> {
@@ -166,7 +166,7 @@ pub fn parse_schedule_plan_content(
 ) -> Result<Vec<ScheduleEntry>, ExcelParseError> {
     let mut start_parsing = false;
     let mut previous_date: Option<String> = None;
-    let mut scedule_entries = vec![];
+    let mut schedule_entries = vec![];
     for row in excel_range.rows() {
         if row.len() != 3 {
             todo!("Add parser error when more than 3 rows."); // TODO:
@@ -199,14 +199,14 @@ pub fn parse_schedule_plan_content(
         }
         if let Some(date) = &opt_date {
             previous_date = Some(date.clone());
-            scedule_entries.push(get_scedule_entry(&date, &times, &scenes));
+            schedule_entries.push(get_schedule_entry(&date, &times, &scenes));
         } else if let Some(date) = &previous_date {
-            scedule_entries.push(get_scedule_entry(&date, &times, &scenes));
+            schedule_entries.push(get_schedule_entry(&date, &times, &scenes));
         } else {
             panic!("No date found")
         }
     }
-    Ok(add_corresponding_stop_time(scedule_entries))
+    Ok(add_corresponding_stop_time(schedule_entries))
 }
 
 fn parse_scene_plan_content(
@@ -266,20 +266,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .as_str(),
     );
-    let test_file_path = root_dir.join("tests/data/test_scedule.xlsx");
+    let test_file_path = root_dir.join("tests/data/test_schedule.xlsx");
     let test_file_path_str = test_file_path
         .to_str()
         .expect("Check file name, wrong UTF-8 encoding for this os.");
 
-    let scedule_sheet_num = 0;
-    let scedule_excel_range = read_excel(test_file_path_str, scedule_sheet_num)?;
-    let scedule_entries = parse_schedule_plan_content(&scedule_excel_range)?;
-    dbg!(&scedule_entries);
+    let schedule_sheet_num = 0;
+    let schedule_excel_range = read_excel(test_file_path_str, schedule_sheet_num)?;
+    let schedule_entries = parse_schedule_plan_content(&schedule_excel_range)?;
+    dbg!(&schedule_entries);
     let scene_sheet_num = 1;
     let scene_excel_range = read_excel(test_file_path_str, scene_sheet_num)?;
     let scene_entries = parse_scene_plan_content(scene_excel_range)?;
     dbg!(&scene_entries);
-    let schedule_to_scene_entries = get_schedule_to_scene_entry(&scedule_entries, &scene_entries);
+    let schedule_to_scene_entries = get_schedule_to_scene_entry(&schedule_entries, &scene_entries);
     dbg!(schedule_to_scene_entries);
 
     Ok(())
