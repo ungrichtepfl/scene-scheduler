@@ -8,4 +8,6 @@ edition = "2021"
 [dependencies]
 calamine = "0.19.1"
 chrono = "0.4"
+chrono-tz = "0.8.0"
 ics = "0.5"
+md5 = "0.7.0"
