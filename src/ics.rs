@@ -70,10 +70,10 @@ fn get_start_and_end_time(schedule_entry: &ScheduleEntry) -> Option<(String, Str
     } else {
       start_date + Duration::hours(DEFAULT_EVENT_DURATION_HOURS)
     };
-    dbg!(Some((
+    Some((
       start_date.naive_utc().format(ICAL_STR_FORMAT).to_string(),
       stop_date.naive_utc().format(ICAL_STR_FORMAT).to_string(),
-    )))
+    ))
   } else {
     None
   }

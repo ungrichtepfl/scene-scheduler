@@ -8,7 +8,6 @@ fn parse_scenes(scenes: &String) -> Vec<String> {
 }
 
 pub fn get_schedule_entry(date: &String, time: &String, scenes: &String) -> ScheduleEntry {
-  dbg!(date, time, scenes);
   ScheduleEntry::new(parse_date(date), parse_time(time), parse_scenes(scenes))
 }
 
@@ -51,7 +50,7 @@ fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
         Some(NaiveTime::parse_from_str(stop.trim(), "%H:%M").unwrap()), // TODO: Add error handling
       )
     } else {
-      panic!() // TODO: Add error handling
+      todo!() // TODO: Add error handling
     }
   } else {
     (
@@ -66,7 +65,6 @@ fn add_corresponding_stop_time(schedule_entries: Vec<ScheduleEntry>) -> Vec<Sche
     return schedule_entries;
   }
 
-  dbg!(schedule_entries.len());
   let mut previous_start_time = schedule_entries.last().unwrap().start_stop_time.0.clone();
   let mut previous_date = schedule_entries.last().unwrap().date.clone();
   let mut new_schedule_entries = vec![];
@@ -89,7 +87,6 @@ fn add_corresponding_stop_time(schedule_entries: Vec<ScheduleEntry>) -> Vec<Sche
     previous_date = previous_date_tmp;
     previous_start_time = previous_start_time_tmp;
   }
-  dbg!(new_schedule_entries.len());
 
   new_schedule_entries.reverse();
   new_schedule_entries
@@ -158,7 +155,6 @@ pub fn parse_scene_plan_content(
           _ => todo!("Error handling all scenes"), // TODO: Error handling all scenes
         }
       }
-      dbg!(&all_scenes);
     } else {
       let role = match &row[0] {
         DataType::String(x) => x.clone(),
