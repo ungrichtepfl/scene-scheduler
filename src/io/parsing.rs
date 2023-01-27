@@ -9,12 +9,7 @@ fn parse_scenes(scenes: &String) -> Vec<String> {
 
 pub fn get_schedule_entry(date: &String, time: &String, scenes: &String) -> ScheduleEntry {
   dbg!(date, time, scenes);
-  ScheduleEntry {
-    date: parse_date(date),
-    start_stop_time: parse_time(time),
-    scenes: parse_scenes(scenes),
-    uuid: md5::compute(date.to_owned() + time.as_str() + scenes.as_str()),
-  }
+  ScheduleEntry::new(parse_date(date), parse_time(time), parse_scenes(scenes))
 }
 
 fn parse_date(date: &String) -> Option<NaiveDate> {

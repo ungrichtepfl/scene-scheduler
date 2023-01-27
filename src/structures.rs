@@ -37,3 +37,46 @@ pub struct ScheduleEntry {
   pub scenes: Vec<String>,
   pub uuid: md5::Digest,
 }
+
+impl ScheduleEntry {
+  pub fn new(
+    date: Option<NaiveDate>,
+    start_stop_time: (NaiveTime, Option<NaiveTime>),
+    scenes: Vec<String>,
+  ) -> Self {
+    let uuid = Self::get_uuid(&scenes, &date, &start_stop_time);
+    Self {
+      date,
+      start_stop_time,
+      scenes,
+      uuid,
+    }
+  }
+
+  fn get_uuid(
+    scenes: &Vec<String>,
+    date: &Option<NaiveDate>,
+    start_stop_time: &(NaiveTime, Option<NaiveTime>),
+  ) -> md5::Digest {
+    let mut scenes = scenes.to_owned();
+    scenes.sort_unstable();
+    let date_str = match date {
+      Some(d) => d.format("%Y-%m-%d").to_string(),
+      None => "None".to_owned(),
+    };
+    fn time_str(time: NaiveTime) -> String {
+      time.format("%H:%M").to_string()
+    }
+    let start_stop_time_str = match start_stop_time.1 {
+      Some(stop) => format!("{}-{}", time_str(start_stop_time.0), time_str(stop)),
+      None => time_str(start_stop_time.0),
+    };
+    let uuid = md5::compute(format!(
+      "{}{}{}",
+      date_str,
+      start_stop_time_str,
+      scenes.join("")
+    ));
+    uuid
+  }
+}
