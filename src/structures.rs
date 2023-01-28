@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, NaiveTime};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use std::error::Error;
 use std::fmt;
 
@@ -30,11 +30,19 @@ pub struct SceneEntry {
   pub silent_play: Vec<bool>,
 }
 
+impl SceneEntry {
+  pub fn is_scene_silent_play(&self, scene: &String) -> Option<bool> {
+    let index = self.scenes.iter().position(|x| x == scene);
+    index.map(|i| self.silent_play[i])
+  }
+}
+
 #[derive(Debug)]
 pub struct ScheduleEntry {
   pub date: Option<NaiveDate>,
   pub start_stop_time: (NaiveTime, Option<NaiveTime>),
   pub scenes: Vec<String>,
+  pub room: Option<String>,
   pub uuid: md5::Digest,
 }
 
@@ -43,13 +51,29 @@ impl ScheduleEntry {
     date: Option<NaiveDate>,
     start_stop_time: (NaiveTime, Option<NaiveTime>),
     scenes: Vec<String>,
+    room: Option<String>,
   ) -> Self {
-    let uuid = Self::get_uuid(&scenes, &date, &start_stop_time);
+    let uuid = Self::get_uuid(&scenes, &date, &start_stop_time, &room);
     Self {
       date,
       start_stop_time,
       scenes,
+      room,
       uuid,
+    }
+  }
+
+  pub fn start_stop_date_time(&self) -> Option<(NaiveDateTime, Option<NaiveDateTime>)> {
+    match self.date {
+      Some(date) => {
+        let start_date_time = date.and_time(self.start_stop_time.0);
+        let stop_date_time = match self.start_stop_time.1 {
+          Some(stop_time) => Some(date.and_time(stop_time)),
+          None => None,
+        };
+        Some((start_date_time, stop_date_time))
+      }
+      None => None,
     }
   }
 
@@ -57,6 +81,7 @@ impl ScheduleEntry {
     scenes: &Vec<String>,
     date: &Option<NaiveDate>,
     start_stop_time: &(NaiveTime, Option<NaiveTime>),
+    room: &Option<String>,
   ) -> md5::Digest {
     let mut scenes = scenes.to_owned();
     scenes.sort_unstable();
@@ -71,11 +96,16 @@ impl ScheduleEntry {
       Some(stop) => format!("{}-{}", time_str(start_stop_time.0), time_str(stop)),
       None => time_str(start_stop_time.0),
     };
+    let room_str = match room {
+      Some(r) => r.to_owned(),
+      None => "None".to_owned(),
+    };
     let uuid = md5::compute(format!(
-      "{}{}{}",
+      "{}{}{}{}",
       date_str,
       start_stop_time_str,
-      scenes.join("")
+      scenes.join(""),
+      room_str
     ));
     uuid
   }

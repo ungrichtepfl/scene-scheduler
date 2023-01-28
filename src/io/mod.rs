@@ -1,4 +1,5 @@
 pub mod parsing;
+
 pub mod excel {
   use calamine::{open_workbook, DataType, Range, Reader, Xlsx};
 
