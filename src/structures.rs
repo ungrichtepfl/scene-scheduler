@@ -110,3 +110,11 @@ impl ScheduleEntry {
     uuid
   }
 }
+
+#[derive(Debug)]
+pub struct Config {
+  pub excel_file_path: String,
+  pub schedule_sheet_num: usize,
+  pub scene_sheet_num: usize,
+  pub out_dir: String,
+}
