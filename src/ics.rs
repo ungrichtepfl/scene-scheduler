@@ -8,7 +8,7 @@ const ICAL_STR_FORMAT: &str = "%Y%m%dT%H%M%SZ";
 const DEFAULT_EVENT_DURATION_HOURS: i64 = 4;
 
 pub fn write_ics_file(
-  person_to_scene_and_schedule_entry: &Vec<(Person, Vec<&(&ScheduleEntry, &SceneEntry)>)>,
+  person_to_scene_and_schedule_entry: &Vec<(Person, Vec<&(&ScheduleEntry, Option<&SceneEntry>)>)>,
   out_dir: &str,
   default_location: &str,
 ) -> std::io::Result<()> {
@@ -43,11 +43,16 @@ pub fn write_ics_file(
         }
         // Values that are "TEXT" must be escaped (only if the text contains a comma,
         // semicolon, backslash or newline).
-        let description = format!(
-          "Role: {}\nScenen: {}",
-          scene_entry.role,
-          schedule_entry.scenes.join("/")
-        );
+        let mut description = String::new();
+        if let Some(scene_entry) = scene_entry {
+          description.push_str(format!("Rolle: {}\n", scene_entry.role).as_str());
+        };
+        if !schedule_entry.scenes.is_empty() {
+          description.push_str(format!("Szenen: {}\n", schedule_entry.scenes.join(", ")).as_str());
+        };
+        if let Some(note) = &schedule_entry.note {
+          description.push_str(format!("Beschreibung: {}\n", note).as_str());
+        };
         event.push(Description::new(escape_text(description)));
         // add event to calendar
         calendar.add_event(event);

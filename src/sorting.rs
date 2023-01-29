@@ -5,16 +5,19 @@ use std::collections::HashSet;
 pub fn get_schedule_to_scene_entry<'a>(
   schedule_entries: &'a Vec<ScheduleEntry>,
   scene_entries: &'a Vec<SceneEntry>,
-) -> Vec<(&'a ScheduleEntry, &'a SceneEntry)> {
+) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
   let mut schedule_to_scene_entries = vec![];
   for schedule_entry in schedule_entries {
     for scene_entry in scene_entries {
-      if scene_entry
+      if schedule_entry.scenes.is_empty() {
+        // When no scenes are specified, all scenes are played or not yet known
+        schedule_to_scene_entries.push((schedule_entry, None));
+      } else if scene_entry
         .scenes
         .iter()
         .any(|s| schedule_entry.scenes.contains(s))
       {
-        schedule_to_scene_entries.push((schedule_entry, scene_entry));
+        schedule_to_scene_entries.push((schedule_entry, Some(scene_entry)));
       } else {
         //TODO: What to do if no match is found?
         println!("No match for scene entry: {:?}", scene_entry);
@@ -25,17 +28,23 @@ pub fn get_schedule_to_scene_entry<'a>(
 }
 
 pub fn get_person_to_scene_and_schedule_entry<'a>(
-  schedule_to_scene_entries: &'a Vec<(&'a ScheduleEntry, &'a SceneEntry)>,
-) -> Vec<(Person, Vec<&'a (&'a ScheduleEntry, &'a SceneEntry)>)> {
+  schedule_to_scene_entries: &'a Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)>,
+) -> Vec<(Person, Vec<&'a (&'a ScheduleEntry, Option<&'a SceneEntry>)>)> {
   let all_persons = schedule_to_scene_entries
     .iter()
-    .map(|(_, scene_entry)| scene_entry.who.to_owned())
+    .filter_map(|(_, scene_entry)| scene_entry.map(|x| x.who.to_owned()))
     .collect::<HashSet<Person>>();
   let mut person_to_scene_and_schedule_entry = vec![];
   for person in all_persons {
     let schedule_entries_for_person = schedule_to_scene_entries
       .into_iter()
-      .filter(|(_, scene_entry)| scene_entry.who == person)
+      .filter(|(_, scene_entry)| {
+        if let Some(scene_entry) = scene_entry {
+          scene_entry.who == person
+        } else {
+          false
+        }
+      })
       .collect();
     person_to_scene_and_schedule_entry.push((person, schedule_entries_for_person));
   }
@@ -43,15 +52,19 @@ pub fn get_person_to_scene_and_schedule_entry<'a>(
 }
 
 pub fn filter_by_silent_play<'a>(
-  schedule_to_scene_entries: &'a Vec<(&ScheduleEntry, &SceneEntry)>,
+  schedule_to_scene_entries: &'a Vec<(&ScheduleEntry, Option<&SceneEntry>)>,
   mandatory_silent_play: &'a NaiveDate,
-) -> Vec<(&'a ScheduleEntry, &'a SceneEntry)> {
+) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
   let mut filtered_schedule_to_scene_entries = vec![];
   for (schedule_entry, scene_entry) in schedule_to_scene_entries {
-    let any_non_silent_play = schedule_entry
-      .scenes
-      .iter()
-      .any(|scene| scene_entry.is_scene_silent_play(scene) == Some(false));
+    let any_non_silent_play = schedule_entry.scenes.iter().any(|scene| {
+      if let Some(scene_entry) = scene_entry {
+        scene_entry.is_scene_silent_play(scene) == Some(false)
+      } else {
+        // if scene entry is not known, assume it is not silent play
+        true
+      }
+    });
     if any_non_silent_play {
       filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
     } else {
@@ -69,12 +82,17 @@ pub fn filter_by_silent_play<'a>(
 }
 
 pub fn filter_by_non_empty_schedule_entry_date<'a>(
-  schedule_to_scene_entries: &'a Vec<(&ScheduleEntry, &SceneEntry)>,
-) -> Vec<(&'a ScheduleEntry, &'a SceneEntry)> {
+  schedule_to_scene_entries: &'a Vec<(&ScheduleEntry, Option<&SceneEntry>)>,
+) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
   schedule_to_scene_entries
     .into_iter()
-    .filter(|(schedule_entry, _)| !schedule_entry.date.is_none())
-    .map(|(schedule_entry, scene_entry)| (*schedule_entry, *scene_entry))
+    .filter_map(|(schedule_entry, scene_entry)| {
+      if !schedule_entry.date.is_none() {
+        Some((*schedule_entry, *scene_entry))
+      } else {
+        None
+      }
+    })
     .collect()
 }
 
@@ -95,19 +113,29 @@ mod tests {
         (NaiveTime::from_hms(10, 0, 0), None),
         vec!["Scene 1".to_string(), "Scene 2".to_string()],
         Some("Room 1".to_string()),
+        None,
       ),
       ScheduleEntry::new(
         Some(NaiveDate::from_ymd(2022, 5, 1)),
         (NaiveTime::from_hms(10, 0, 0), None),
         vec!["Scene 3".to_string()],
         Some("Room 1".to_string()),
+        None,
       ),
       ScheduleEntry::new(
         Some(NaiveDate::from_ymd(2022, 7, 1)),
         (NaiveTime::from_hms(10, 0, 0), None),
         vec!["Scene 4".to_string(), "Scene 5".to_string()],
         None,
+        None,
       ),
+      // ScheduleEntry::new(
+      //   Some(NaiveDate::from_ymd(2022, 8, 1)),
+      //   (NaiveTime::from_hms(10, 0, 0), None),
+      //   vec![],
+      //   None,
+      //   None,// TODO: Add test for this
+      // ),
     ];
     let scene_entries = vec![
       SceneEntry {
@@ -148,15 +176,17 @@ mod tests {
     let schedule_to_scene_entries = get_schedule_to_scene_entry(&schedule_entries, &scene_entries);
     assert_eq!(schedule_to_scene_entries.len(), 6, "Should have 6 entries.",);
     for (schedule_entry, scene_entry) in schedule_to_scene_entries {
-      assert!(
-        schedule_entry
-          .scenes
-          .iter()
-          .any(|scene| scene_entry.scenes.contains(scene)),
-        "Some scene of schedule entry {:?} should be in scene entry {:?}",
-        schedule_entry.scenes,
-        scene_entry.scenes,
-      );
+      if let Some(scene_entry) = scene_entry {
+        assert!(
+          schedule_entry
+            .scenes
+            .iter()
+            .any(|scene| scene_entry.scenes.contains(scene)),
+          "Some scene of schedule entry {:?} should be in scene entry {:?}",
+          schedule_entry.scenes,
+          scene_entry.scenes,
+        );
+      }
     }
   }
 
@@ -173,20 +203,22 @@ mod tests {
     );
     for (person, schedule_entries_for_person) in person_to_scene_and_schedule_entry {
       for (schedule_entry, scene_entry) in schedule_entries_for_person {
-        assert_eq!(
-          person, scene_entry.who,
-          "Person {:?} should be the same as the person in the scene entry {:?}",
-          person, scene_entry
-        );
-        assert!(
-          schedule_entry
-            .scenes
-            .iter()
-            .any(|scene| scene_entry.scenes.contains(scene)),
-          "Some scene of schedule entry {:?} should be in scene entry {:?}",
-          schedule_entry.scenes,
-          scene_entry.scenes,
-        );
+        if let Some(scene_entry) = scene_entry {
+          assert_eq!(
+            person, scene_entry.who,
+            "Person {:?} should be the same as the person in the scene entry {:?}",
+            person, scene_entry
+          );
+          assert!(
+            schedule_entry
+              .scenes
+              .iter()
+              .any(|scene| scene_entry.scenes.contains(scene)),
+            "Some scene of schedule entry {:?} should be in scene entry {:?}",
+            schedule_entry.scenes,
+            scene_entry.scenes,
+          );
+        }
       }
     }
   }

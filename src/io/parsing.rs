@@ -2,33 +2,30 @@ use crate::structures::ScheduleEntry;
 use chrono::{NaiveDate, NaiveTime};
 
 fn parse_scenes(scenes: &String) -> Vec<String> {
+  if scenes.contains("Gesamtdurchlauf") || scenes.contains("Aufführung") || scenes.contains("x") {
+    return vec![];
+  }
   scenes.split("/").map(|s| s.trim().to_owned()).collect()
 }
 
-fn get_schedule_entry(
-  date: &String,
-  time: &String,
-  scenes: &String,
-  room: &Option<String>,
-) -> ScheduleEntry {
-  ScheduleEntry::new(
-    parse_date(date),
-    parse_time(time),
-    parse_scenes(scenes),
-    room.to_owned(),
-  )
+fn parse_note(note: &String) -> String {
+  note.trim().to_owned()
 }
 
-fn parse_date(date: &String) -> Option<NaiveDate> {
+fn parse_room(room: &String) -> String {
+  room.trim().to_owned()
+}
+
+fn parse_date(date: &String) -> NaiveDate {
   if !["Mo.", "Di.", "Mi.", "Do.", "Fr.", "Sa.", "So."]
     .iter()
     .any(|s| date.contains(s))
   {
-    return None;
+    todo!("Add parser error when not a date. Date: {date:?}"); // TODO:
   }
   let english_date = change_german_days_to_englisch(date);
-  Some(NaiveDate::parse_from_str(english_date.trim(), "%a. %_d.%_m.%y").unwrap())
   // TODO: Add error handling
+  NaiveDate::parse_from_str(english_date.trim(), "%a. %_d.%_m.%y").unwrap()
 }
 
 fn change_german_days_to_englisch(date: &String) -> String {
@@ -90,6 +87,7 @@ fn add_corresponding_stop_time(schedule_entries: Vec<ScheduleEntry>) -> Vec<Sche
           (entry.start_stop_time.0, Some(previous_start_time)),
           entry.scenes,
           entry.room,
+          entry.note,
         ))
       } else {
         new_schedule_entries.push(entry);
@@ -114,91 +112,110 @@ pub mod excel {
     excel_range: &Range<DataType>,
   ) -> Result<(Option<NaiveDate>, String), ExcelParseError> {
     let first_row = excel_range.rows().next().unwrap(); // TODO: Add error handling
-    if first_row.len() != 4 {
-      todo!("Add parser error when more than 4 rows."); // TODO:
+    if first_row.len() != 5 {
+      todo!("Add parser error when more than 5 rows."); // TODO:
     }
-    let room = match first_row {
-      [_, _, _, DataType::String(x)] => x.to_owned(),
-      [_, _, _, DataType::Float(x)] => x.to_string(),
-      _ => todo!("Add parser error when not only strings. Row: {first_row:?}"), // TODO:
-    };
-    let mandatory_silent_play_str = match first_row {
-      [_, DataType::String(x), _, _] => Some(x.to_owned()),
-      [_, DataType::Empty, _, _] => None,
-      _ => todo!("Add parser error when not only strings. Row: {first_row:?}"), // TODO:
-    };
-    let mandatory_silent_play: Option<_> =
-      if let Some(mandatory_silent_play) = mandatory_silent_play_str {
-        if let Some(date) = parse_date(&mandatory_silent_play) {
-          Some(date)
-        } else {
-          // TODO:
-          todo!("Add parser error when date could not be parsed: {mandatory_silent_play:?}");
-        }
-      } else {
-        None
-      };
-    Ok((mandatory_silent_play, room))
+    let mandatory_silent_play = parse_date_from_excel(&first_row[1]);
+    let room = parse_room_from_excel(&first_row[3]);
+    if let Some(room) = room {
+      Ok((mandatory_silent_play, room))
+    } else {
+      todo!("Add error that room is not set.")
+    }
   }
 
   pub fn parse_schedule_plan_content(
     excel_range: &Range<DataType>,
   ) -> Result<Vec<ScheduleEntry>, ExcelParseError> {
     let mut start_parsing = false;
-    let mut previous_date: Option<String> = None;
+    let mut previous_date: Option<NaiveDate> = None;
     let mut schedule_entries = vec![];
     for (i, row) in excel_range.rows().enumerate() {
       if i == 0 {
         continue;
       }
-      if row.len() != 4 {
-        todo!("Add parser error when more than 4 rows."); // TODO:
+      if row.len() != 5 {
+        todo!("Add parser error when more than 5 rows."); // TODO:
       }
 
-      let (opt_date, times, scenes) = match row {
-        [DataType::String(x), DataType::String(y), DataType::String(z), _] => {
-          (Some(x.to_owned()), y.to_owned(), z.to_owned())
-        }
-        [DataType::String(x), DataType::String(y), DataType::Float(z), _] => {
-          (Some(x.to_owned()), y.to_owned(), z.to_string())
-        }
-        [DataType::Empty, DataType::String(y), DataType::Float(z), _] => {
-          (None, y.to_owned(), z.to_string())
-        }
-        [DataType::Empty, DataType::String(y), DataType::String(z), _] => {
-          (None, y.to_owned(), z.to_owned())
-        }
-        _ => {
-          todo!("Add parser error when not only strings. Row: {row:?}")
-        }
-      };
-      let room: Option<String> = match row {
-        [_, _, _, DataType::String(x)] => Some(x.to_owned()),
-        [_, _, _, DataType::Float(x)] => Some(x.to_string()),
-        [_, _, _, DataType::Empty] => None,
-        _ => {
-          todo!("Add parser error when not only strings for room. Row: {row:?}")
-        }
-      };
-
       if !start_parsing {
-        if !times.eq(&String::from("Zeit")) {
+        // TODO: Don't hardcode
+        if !row[0].to_string().trim().eq(&String::from("Datum")) {
           continue;
         } else {
           start_parsing = true;
           continue;
         }
       }
-      if let Some(date) = &opt_date {
+
+      let date = if let Some(date) = parse_date_from_excel(&row[0]) {
         previous_date = Some(date.clone());
-        schedule_entries.push(get_schedule_entry(&date, &times, &scenes, &room));
-      } else if let Some(date) = &previous_date {
-        schedule_entries.push(get_schedule_entry(&date, &times, &scenes, &room));
+        Some(date)
+      } else if let Some(previous_date) = previous_date {
+        Some(previous_date)
       } else {
-        panic!("No date found")
-      }
+        None // TODO:
+      };
+      let start_stop_time = parse_time_from_excel(&row[1]);
+      let scenes = parse_scenes_from_excel(&row[2]);
+      let room = parse_room_from_excel(&row[3]);
+      let note = parse_note_from_excel(&row[4]);
+
+      schedule_entries.push(ScheduleEntry::new(
+        date, // TODO: Remove optional
+        start_stop_time,
+        scenes,
+        room,
+        note,
+      ));
     }
     Ok(add_corresponding_stop_time(schedule_entries))
+  }
+
+  fn parse_note_from_excel(note: &DataType) -> Option<String> {
+    if note == &DataType::Empty {
+      None
+    } else {
+      Some(parse_note(&note.to_string()))
+    }
+  }
+
+  fn parse_scenes_from_excel(scenes: &DataType) -> Vec<String> {
+    if scenes == &DataType::Empty {
+      vec![]
+    } else {
+      parse_scenes(&scenes.to_string())
+    }
+  }
+
+  fn parse_time_from_excel(time: &DataType) -> (NaiveTime, Option<NaiveTime>) {
+    if time == &DataType::Empty {
+      todo!("Add parser error when time is empty.") // TODO:
+    }
+    if let Some(time) = time.as_time() {
+      (time, None)
+    } else {
+      parse_time(&time.to_string())
+    }
+  }
+
+  fn parse_date_from_excel(date: &DataType) -> Option<NaiveDate> {
+    if date == &DataType::Empty {
+      return None; // TODO: Use result.
+    }
+    if let Some(date) = date.as_date() {
+      Some(date)
+    } else {
+      Some(parse_date(&date.to_string()))
+    }
+  }
+
+  fn parse_room_from_excel(room: &DataType) -> Option<String> {
+    if room == &DataType::Empty {
+      None
+    } else {
+      Some(parse_room(&room.to_string()))
+    }
   }
 
   pub fn parse_scene_plan_content(
