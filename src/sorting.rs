@@ -103,28 +103,28 @@ mod tests {
   use chrono::NaiveTime;
 
   fn mandatory_silent_play() -> NaiveDate {
-    NaiveDate::from_ymd(2022, 6, 1)
+    NaiveDate::from_ymd_opt(2022, 6, 1).unwrap()
   }
 
   fn test_data() -> (Vec<ScheduleEntry>, Vec<SceneEntry>) {
     let schedule_entries: Vec<ScheduleEntry> = vec![
       ScheduleEntry::new(
         None,
-        (NaiveTime::from_hms(10, 0, 0), None),
+        (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
         vec!["Scene 1".to_string(), "Scene 2".to_string()],
         Some("Room 1".to_string()),
         None,
       ),
       ScheduleEntry::new(
-        Some(NaiveDate::from_ymd(2022, 5, 1)),
-        (NaiveTime::from_hms(10, 0, 0), None),
+        Some(NaiveDate::from_ymd_opt(2022, 5, 1).unwrap()),
+        (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
         vec!["Scene 3".to_string()],
         Some("Room 1".to_string()),
         None,
       ),
       ScheduleEntry::new(
-        Some(NaiveDate::from_ymd(2022, 7, 1)),
-        (NaiveTime::from_hms(10, 0, 0), None),
+        Some(NaiveDate::from_ymd_opt(2022, 7, 1).unwrap()),
+        (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
         vec!["Scene 4".to_string(), "Scene 5".to_string()],
         None,
         None,
