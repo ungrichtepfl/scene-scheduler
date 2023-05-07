@@ -5,8 +5,8 @@ mod scheduler;
 mod sorting;
 mod structures;
 
-use gui::Scheduler;
 use iced::{Sandbox, Settings};
+use scheduler::Scheduler;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   Scheduler::run(Settings::default())?;

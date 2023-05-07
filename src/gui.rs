@@ -1,4 +1,4 @@
-use crate::scheduler;
+use crate::scheduler::Scheduler;
 use crate::structures::{Config, ThemeType};
 use iced::theme::Theme;
 use iced::widget::{
@@ -6,11 +6,6 @@ use iced::widget::{
 };
 use iced::{alignment, Color, Element, Length, Sandbox};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
-
-#[derive(Debug)]
-pub struct Scheduler {
-  config: Config,
-}
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -115,7 +110,7 @@ impl Sandbox for Scheduler {
         }
       }
       Message::RunProgram => {
-        let res = scheduler::run(self.config.clone());
+        let res = self.process();
         match res {
           Ok(_) => {
             _ = MessageDialog::new()
