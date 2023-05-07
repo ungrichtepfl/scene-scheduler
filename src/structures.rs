@@ -127,18 +127,19 @@ pub enum ThemeType {
   Dark,
 }
 
+const CONFIG_FILE: &'static str = "config.json";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
   pub excel_file_path: String,
   pub schedule_sheet_num: usize,
   pub scene_sheet_num: usize,
   pub out_dir: String,
-  pub theme: ThemeType,
 }
 
 impl Config {
   pub fn load() -> Result<Self, Box<dyn Error>> {
-    let config_file_path = "config.json";
+    let config_file_path = CONFIG_FILE;
     if !std::path::Path::new(config_file_path).exists() {
       return Ok(Self::default());
     }
@@ -149,7 +150,7 @@ impl Config {
   }
 
   pub fn save(&self) -> Result<(), Box<dyn Error>> {
-    let config_file_path = "config.json";
+    let config_file_path = CONFIG_FILE;
     let config_file = std::fs::File::create(config_file_path)?;
     serde_json::to_writer_pretty(config_file, self)?;
     Ok(())
@@ -161,7 +162,6 @@ impl Config {
       schedule_sheet_num: 0,
       scene_sheet_num: 1,
       out_dir: "".to_owned(),
-      theme: ThemeType::Light,
     }
   }
 }

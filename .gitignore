@@ -3,3 +3,4 @@
 ics/
 *.ics
 config.json
+gui_config.json

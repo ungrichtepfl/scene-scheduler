@@ -6,6 +6,8 @@ use iced::widget::{
 };
 use iced::{alignment, Color, Element, Length, Sandbox};
 use native_dialog::{FileDialog, MessageDialog, MessageType};
+use serde::{Deserialize, Serialize};
+use std::error::Error;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -20,19 +22,70 @@ pub enum Message {
   CloseProgram,
 }
 
-impl Sandbox for Scheduler {
+const GUI_CONFIG_FILE: &'static str = "gui_config.json";
+
+#[derive(Serialize, Deserialize)]
+pub struct GuiConfig {
+  pub theme: ThemeType,
+}
+
+impl GuiConfig {
+  pub fn load() -> Result<Self, Box<dyn Error>> {
+    let config_file_path = GUI_CONFIG_FILE;
+    if !std::path::Path::new(config_file_path).exists() {
+      return Ok(Self::default());
+    }
+    let config_file = std::fs::File::open(config_file_path)?;
+
+    let config = serde_json::from_reader(config_file)?;
+    Ok(config)
+  }
+
+  pub fn save(&self) -> Result<(), Box<dyn Error>> {
+    let config_file_path = GUI_CONFIG_FILE;
+    let config_file = std::fs::File::create(config_file_path)?;
+    serde_json::to_writer_pretty(config_file, self)?;
+    Ok(())
+  }
+
+  pub fn default() -> Self {
+    Self {
+      theme: ThemeType::Light,
+    }
+  }
+}
+
+pub struct Gui {
+  pub scheduler: Scheduler,
+  pub schedule_sheet_num_opt: Option<usize>,
+  pub scene_sheet_num_opt: Option<usize>,
+  pub gui_config: GuiConfig,
+}
+
+impl Sandbox for Gui {
   type Message = Message;
 
   fn new() -> Self {
-    let config = Config::load();
-    match config {
+    let config = match Config::load() {
       Err(e) => {
         println!("Error: {}", e);
-        Self {
-          config: Config::default(),
-        }
+        Config::default()
       }
-      Ok(c) => Self { config: c },
+      Ok(c) => c,
+    };
+    let gui_config = match GuiConfig::load() {
+      Err(e) => {
+        println!("Error: {}", e);
+        GuiConfig::default()
+      }
+      Ok(c) => c,
+    };
+    let scheduler = Scheduler { config };
+    Self {
+      schedule_sheet_num_opt: Some(scheduler.config.schedule_sheet_num),
+      scene_sheet_num_opt: Some(scheduler.config.scene_sheet_num),
+      scheduler,
+      gui_config,
     }
   }
 
@@ -43,15 +96,19 @@ impl Sandbox for Scheduler {
   fn update(&mut self, message: Message) {
     match message {
       Message::CloseProgram => {
-        let res = self.config.save();
-        if res.is_err() {
-          println!("Error: {}", res.err().unwrap());
+        let res_config = self.scheduler.config.save();
+        if res_config.is_err() {
+          println!("Error: {}", res_config.err().unwrap());
+        }
+        let res_gui_config = self.gui_config.save();
+        if res_gui_config.is_err() {
+          println!("Error: {}", res_gui_config.err().unwrap());
         }
         std::process::exit(0);
       }
-      Message::ThemeChanged(theme) => self.config.theme = theme,
-      Message::ExcelPathChanged(value) => self.config.excel_file_path = value,
-      Message::OutDirChanged(value) => self.config.out_dir = value,
+      Message::ThemeChanged(theme) => self.gui_config.theme = theme,
+      Message::ExcelPathChanged(value) => self.scheduler.config.excel_file_path = value,
+      Message::OutDirChanged(value) => self.scheduler.config.out_dir = value,
       Message::ChooseExcelFile => {
         let start_path = dirs::desktop_dir().map(|p| p.as_path().to_owned());
         let path = if let Some(start_path) = start_path {
@@ -78,7 +135,7 @@ impl Sandbox for Scheduler {
         }
 
         match path.unwrap() {
-          Some(path) => self.config.excel_file_path = path.to_string_lossy().to_string(),
+          Some(path) => self.scheduler.config.excel_file_path = path.to_string_lossy().to_string(),
           None => return,
         }
       }
@@ -105,12 +162,12 @@ impl Sandbox for Scheduler {
         }
 
         match path.unwrap() {
-          Some(path) => self.config.out_dir = path.to_string_lossy().to_string(),
+          Some(path) => self.scheduler.config.out_dir = path.to_string_lossy().to_string(),
           None => return,
         }
       }
       Message::RunProgram => {
-        let res = self.process();
+        let res = self.scheduler.process();
         match res {
           Ok(_) => {
             _ = MessageDialog::new()
@@ -131,49 +188,52 @@ impl Sandbox for Scheduler {
       }
       Message::ScheduleSheetNumChanged(value) => {
         if value.is_empty() {
-          // FIXME: Introduce optional to display empty string
+          // Empty input: leave the config as it is.
+          self.schedule_sheet_num_opt = None;
           return;
         }
-        let value_usize = value.parse::<usize>();
-        if value_usize.is_err() {
-          println!(
-            "Could not parse ScheduleSheetNum: {}",
-            value_usize.err().unwrap()
-          );
-          _ = MessageDialog::new()
-            .set_type(MessageType::Error)
-            .set_title("Error")
-            .set_text(&format!(
-              "Wrong schedule sheet number entry. Must be a positiv integer but found: {}",
-              value
-            ))
-            .show_alert();
-          return;
+        match value.parse::<usize>() {
+          Err(err) => {
+            println!("Could not parse ScheduleSheetNum: {}", err);
+            _ = MessageDialog::new()
+              .set_type(MessageType::Error)
+              .set_title("Error")
+              .set_text(&format!(
+                "Wrong schedule sheet number entry. Must be a positiv integer but found: {}",
+                value
+              ))
+              .show_alert();
+          }
+          Ok(value_usize) => {
+            self.scheduler.config.schedule_sheet_num = value_usize;
+            self.schedule_sheet_num_opt = Some(value_usize);
+          }
         }
-        self.config.schedule_sheet_num = value_usize.unwrap();
       }
       Message::SceneSheetNumChanged(value) => {
         if value.is_empty() {
-          // FIXME: Introduce optional to display empty string
+          // Empty input: leave the config as it is.
+          self.scene_sheet_num_opt = None;
           return;
         }
-        let value_usize = value.parse::<usize>();
-        if value_usize.is_err() {
-          println!(
-            "Could not parse ScheduleSheetNum: {}",
-            value_usize.err().unwrap()
-          );
-          _ = MessageDialog::new()
-            .set_type(MessageType::Error)
-            .set_title("Error")
-            .set_text(&format!(
-              "Wrong scene sheet number entry. Must be a positiv integer but found: {}",
-              value
-            ))
-            .show_alert();
-          return;
+        match value.parse::<usize>() {
+          Err(err) => {
+            println!("Could not parse ScheduleSheetNum: {}", err);
+            _ = MessageDialog::new()
+              .set_type(MessageType::Error)
+              .set_title("Error")
+              .set_text(&format!(
+                "Wrong scene sheet number entry. Must be a positiv integer but found: {}",
+                value
+              ))
+              .show_alert();
+            return;
+          }
+          Ok(value_usize) => {
+            self.scheduler.config.scene_sheet_num = value_usize;
+            self.scene_sheet_num_opt = Some(value_usize)
+          }
         }
-        self.config.scene_sheet_num = value_usize.unwrap();
       }
     }
   }
@@ -185,7 +245,7 @@ impl Sandbox for Scheduler {
         column.push(radio(
           format!("{theme:?}"),
           *theme,
-          if self.config.theme == *theme {
+          if self.gui_config.theme == *theme {
             Some(*theme)
           } else {
             None
@@ -203,7 +263,7 @@ impl Sandbox for Scheduler {
 
     let excel_file_path_input = text_input(
       "Excel file path",
-      &self.config.excel_file_path,
+      &self.scheduler.config.excel_file_path,
       Message::ExcelPathChanged,
     )
     .padding(10)
@@ -211,7 +271,7 @@ impl Sandbox for Scheduler {
 
     let out_dir_input = text_input(
       "ICS files out directory.",
-      &self.config.out_dir,
+      &self.scheduler.config.out_dir,
       Message::OutDirChanged,
     )
     .padding(10)
@@ -222,10 +282,13 @@ impl Sandbox for Scheduler {
       .size(15)
       .style(Color::from([0.5, 0.5, 0.5]))
       .horizontal_alignment(alignment::Horizontal::Left);
-
+    let scene_sheet_num_input_value = match self.scene_sheet_num_opt {
+      Some(num) => num.to_string(),
+      None => "".to_string(),
+    };
     let scene_sheet_num_input = text_input(
       "Schedule sheet number",
-      &self.config.scene_sheet_num.to_string(),
+      &scene_sheet_num_input_value,
       Message::SceneSheetNumChanged,
     )
     .padding(10)
@@ -237,9 +300,13 @@ impl Sandbox for Scheduler {
       .style(Color::from([0.5, 0.5, 0.5]))
       .horizontal_alignment(alignment::Horizontal::Left);
 
+    let schedule_sheet_num_input_value = match self.schedule_sheet_num_opt {
+      Some(num) => num.to_string(),
+      None => "".to_string(),
+    };
     let schedule_sheet_num_input = text_input(
       "Schedule info sheet number",
-      &self.config.schedule_sheet_num.to_string(),
+      &schedule_sheet_num_input_value,
       Message::ScheduleSheetNumChanged,
     )
     .padding(10)
@@ -288,7 +355,7 @@ impl Sandbox for Scheduler {
   }
 
   fn theme(&self) -> Theme {
-    match self.config.theme {
+    match self.gui_config.theme {
       ThemeType::Light => Theme::Light,
       ThemeType::Dark => Theme::Dark,
     }
