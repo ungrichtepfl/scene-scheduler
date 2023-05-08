@@ -4,6 +4,10 @@ use std::error::Error;
 use std::fmt;
 
 pub type Person = String;
+pub type Scene = String;
+pub type Room = String;
+pub type Note = String;
+pub type Role = String;
 
 #[derive(Debug)]
 pub struct ExcelParseError {
@@ -25,14 +29,14 @@ impl Error for ExcelParseError {}
 
 #[derive(Debug)]
 pub struct SceneEntry {
-  pub role: String,
+  pub role: Role,
   pub who: Person,
-  pub scenes: Vec<String>,
+  pub scenes: Vec<Scene>,
   pub silent_play: Vec<bool>,
 }
 
 impl SceneEntry {
-  pub fn is_scene_silent_play(&self, scene: &String) -> Option<bool> {
+  pub fn is_scene_silent_play(&self, scene: &Scene) -> Option<bool> {
     let index = self.scenes.iter().position(|x| x == scene);
     index.map(|i| self.silent_play[i])
   }
@@ -42,9 +46,9 @@ impl SceneEntry {
 pub struct ScheduleEntry {
   pub date: Option<NaiveDate>,
   pub start_stop_time: (NaiveTime, Option<NaiveTime>),
-  pub scenes: Vec<String>,
-  pub room: Option<String>,
-  pub note: Option<String>,
+  pub scenes: Vec<Scene>,
+  pub room: Option<Room>,
+  pub note: Option<Note>,
   pub uuid: md5::Digest,
 }
 
@@ -52,9 +56,9 @@ impl ScheduleEntry {
   pub fn new(
     date: Option<NaiveDate>,
     start_stop_time: (NaiveTime, Option<NaiveTime>),
-    scenes: Vec<String>,
-    room: Option<String>,
-    note: Option<String>,
+    scenes: Vec<Scene>,
+    room: Option<Room>,
+    note: Option<Note>,
   ) -> Self {
     let uuid = Self::get_uuid(&scenes, &date, &start_stop_time, &room, &note);
     Self {

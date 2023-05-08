@@ -1,18 +1,18 @@
-use crate::structures::ScheduleEntry;
+use crate::structures::{Note, Room, Scene, ScheduleEntry};
 use chrono::{NaiveDate, NaiveTime};
 
-fn parse_scenes(scenes: &String) -> Vec<String> {
+fn parse_scenes(scenes: &String) -> Vec<Scene> {
   if scenes.contains("Gesamtdurchlauf") || scenes.contains("Aufführung") || scenes.contains("x") {
     return vec![];
   }
   scenes.split("/").map(|s| s.trim().to_owned()).collect()
 }
 
-fn parse_note(note: &String) -> String {
+fn parse_note(note: &String) -> Note {
   note.trim().to_owned()
 }
 
-fn parse_room(room: &String) -> String {
+fn parse_room(room: &String) -> Room {
   room.trim().to_owned()
 }
 
@@ -110,7 +110,7 @@ pub mod excel {
 
   pub fn parse_mandatory_silent_play_and_place(
     excel_range: &Range<DataType>,
-  ) -> Result<(Option<NaiveDate>, String), ExcelParseError> {
+  ) -> Result<(Option<NaiveDate>, Room), ExcelParseError> {
     let first_row = excel_range.rows().next().unwrap(); // TODO: Add error handling
     if first_row.len() != 5 {
       todo!("Add parser error when more than 5 rows."); // TODO:
@@ -172,7 +172,7 @@ pub mod excel {
     Ok(add_corresponding_stop_time(schedule_entries))
   }
 
-  fn parse_note_from_excel(note: &DataType) -> Option<String> {
+  fn parse_note_from_excel(note: &DataType) -> Option<Note> {
     if note == &DataType::Empty {
       None
     } else {
@@ -180,7 +180,7 @@ pub mod excel {
     }
   }
 
-  fn parse_scenes_from_excel(scenes: &DataType) -> Vec<String> {
+  fn parse_scenes_from_excel(scenes: &DataType) -> Vec<Scene> {
     if scenes == &DataType::Empty {
       vec![]
     } else {
@@ -210,7 +210,7 @@ pub mod excel {
     }
   }
 
-  fn parse_room_from_excel(room: &DataType) -> Option<String> {
+  fn parse_room_from_excel(room: &DataType) -> Option<Room> {
     if room == &DataType::Empty {
       None
     } else {
