@@ -1,3 +1,4 @@
+use crate::config::{SCENE_MARK, SILENT_PLAY_MARK};
 use crate::structures::{Note, Room, Scene, ScheduleEntry};
 use chrono::{NaiveDate, NaiveTime};
 
@@ -246,10 +247,10 @@ pub mod excel {
         let mut silent_play = vec![];
         for (i, scene) in row[scene_start_index..].iter().enumerate() {
           if let DataType::String(mark) = scene {
-            if mark.contains("x") {
+            if mark.contains(SCENE_MARK) {
               scenes_for_current_role.push(all_scenes[i].clone());
               silent_play.push(false);
-            } else if mark.contains("-") {
+            } else if mark.contains(SILENT_PLAY_MARK) {
               scenes_for_current_role.push(all_scenes[i].clone());
               silent_play.push(true);
             }
