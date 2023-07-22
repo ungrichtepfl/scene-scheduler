@@ -50,7 +50,7 @@ impl GuiConfig {
 
   pub fn default() -> Self {
     Self {
-      theme: ThemeType::Light,
+      theme: ThemeType::Dark,
     }
   }
 }
