@@ -4,7 +4,7 @@ use chrono::{NaiveDate, NaiveTime};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-fn parse_scenes(scenes: &String) -> Vec<Scene> {
+fn parse_scenes(scenes: &str) -> Vec<Scene> {
   if scenes.contains("Gesamtdurchlauf")
     || scenes.contains("Aufführung")
     || scenes.contains('x')
@@ -18,18 +18,18 @@ fn parse_scenes(scenes: &String) -> Vec<Scene> {
     .collect()
 }
 
-fn parse_note(note: &String) -> Note {
+fn parse_note(note: &str) -> Note {
   note.trim().to_owned()
 }
 
-fn parse_room(room: &String) -> Room {
+fn parse_room(room: &str) -> Room {
   room.trim().to_owned()
 }
 
 lazy_static! {
   static ref DATE_REGEX: Regex = Regex::new(r"\d\d?\.\d\d?\.\d\d").expect("Wrong static regex");
 }
-fn parse_date(date: &String) -> NaiveDate {
+fn parse_date(date: &str) -> NaiveDate {
   // TODO: Add error handling
   let date_cap = DATE_REGEX
     .captures(date)
@@ -150,7 +150,9 @@ pub mod excel {
       let date = if let Some(date) = parse_date_from_excel(&row[0]) {
         previous_date = Some(date);
         Some(date)
-      } else { previous_date };
+      } else {
+        previous_date
+      };
       let start_stop_time = parse_time_from_excel(&row[1]);
       let scenes = parse_scenes_from_excel(&row[2]);
       let room = parse_room_from_excel(&row[3]);

@@ -133,9 +133,8 @@ impl Sandbox for Gui {
             .show_alert();
         }
 
-        match path.unwrap() {
-          Some(path) => self.scheduler.config.excel_file_path = path.to_string_lossy().to_string(),
-          None => (),
+        if let Some(path) = path.unwrap() {
+          self.scheduler.config.excel_file_path = path.to_string_lossy().to_string();
         }
       }
       Message::ChooseOutDir => {
@@ -160,9 +159,8 @@ impl Sandbox for Gui {
             .show_alert();
         }
 
-        match path.unwrap() {
-          Some(path) => self.scheduler.config.out_dir = path.to_string_lossy().to_string(),
-          None => (),
+        if let Some(path) = path.unwrap() {
+          self.scheduler.config.out_dir = path.to_string_lossy().to_string();
         }
       }
       Message::RunProgram => {

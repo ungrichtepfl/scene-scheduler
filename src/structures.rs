@@ -8,6 +8,8 @@ pub type Scene = String;
 pub type Room = String;
 pub type Note = String;
 pub type Role = String;
+pub type PersonToSceneAndScheduleEntry<'a> =
+  Vec<(Person, Vec<&'a (&'a ScheduleEntry, Option<&'a SceneEntry>)>)>;
 
 #[derive(Debug)]
 pub struct ExcelParseError {

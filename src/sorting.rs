@@ -1,4 +1,4 @@
-use crate::structures::{Person, SceneEntry, ScheduleEntry};
+use crate::structures::{Person, PersonToSceneAndScheduleEntry, SceneEntry, ScheduleEntry};
 use chrono::NaiveDate;
 use std::collections::HashSet;
 
@@ -30,8 +30,8 @@ pub fn get_schedule_to_scene_entry<'a>(
 }
 
 pub fn get_person_to_scene_and_schedule_entry<'a>(
-  schedule_to_scene_entries: &'a Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)>,
-) -> Vec<(Person, Vec<&'a (&'a ScheduleEntry, Option<&'a SceneEntry>)>)> {
+  schedule_to_scene_entries: &'a [(&'a ScheduleEntry, Option<&'a SceneEntry>)],
+) -> PersonToSceneAndScheduleEntry<'a> {
   let all_persons = schedule_to_scene_entries
     .iter()
     .filter_map(|(_, scene_entry)| scene_entry.map(|x| x.who.to_owned()))
@@ -83,7 +83,7 @@ pub fn filter_by_silent_play<'a>(
 }
 
 pub fn filter_by_non_empty_schedule_entry_date<'a>(
-  schedule_to_scene_entries: &'a Vec<(&ScheduleEntry, Option<&SceneEntry>)>,
+  schedule_to_scene_entries: &'a [(&ScheduleEntry, Option<&SceneEntry>)],
 ) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
   schedule_to_scene_entries
     .iter()

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::structures::{Person, SceneEntry, ScheduleEntry};
+use crate::structures::PersonToSceneAndScheduleEntry;
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone};
 use chrono_tz::{Europe::Zurich, Tz};
 use ics::properties::{Description, DtEnd, DtStart, Location, Status, Summary};
@@ -10,7 +10,7 @@ const ICAL_STR_FORMAT: &str = "%Y%m%dT%H%M%SZ";
 const DEFAULT_EVENT_DURATION_HOURS: i64 = 4;
 
 pub fn write_ics_file(
-  person_to_scene_and_schedule_entry: &Vec<(Person, Vec<&(&ScheduleEntry, Option<&SceneEntry>)>)>,
+  person_to_scene_and_schedule_entry: &PersonToSceneAndScheduleEntry,
   out_dir: &str,
   default_location: &str,
 ) -> std::io::Result<()> {
