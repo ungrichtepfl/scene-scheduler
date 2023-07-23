@@ -4,10 +4,10 @@ use std::error::Error;
 pub const SCENE_MARK: &str = "x";
 pub const SILENT_PLAY_MARK: &str = "s";
 
-pub const GUI_CONFIG_FILE: &'static str = "gui_config.json";
+pub const GUI_CONFIG_FILE: &str = "gui_config.json";
 pub const GUI_TITLE: &str = "Scene Scheduler";
 
-const CONFIG_FILE: &'static str = "config.json";
+const CONFIG_FILE: &str = "config.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {

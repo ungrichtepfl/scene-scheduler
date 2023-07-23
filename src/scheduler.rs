@@ -8,7 +8,7 @@ pub struct Scheduler {
   pub config: Config,
 }
 impl Scheduler {
-  pub fn process(self: &Self) -> Result<(), Box<dyn std::error::Error>> {
+  pub fn process(&self) -> Result<(), Box<dyn std::error::Error>> {
     let schedule_excel_range =
       read_excel(&self.config.excel_file_path, self.config.schedule_sheet_num)?;
     let schedule_entries = parse_schedule_plan_content(&schedule_excel_range)?;

@@ -7,7 +7,7 @@ use regex::Regex;
 fn parse_scenes(scenes: &String) -> Vec<Scene> {
   if scenes.contains("Gesamtdurchlauf")
     || scenes.contains("Aufführung")
-    || scenes.contains("x")
+    || scenes.contains('x')
     || scenes.trim() == "-"
   {
     return vec![];
@@ -33,15 +33,15 @@ fn parse_date(date: &String) -> NaiveDate {
   // TODO: Add error handling
   let date_cap = DATE_REGEX
     .captures(date)
-    .expect(format!("Wrong date format: {}", date).as_str());
+    .unwrap_or_else(|| panic!("Wrong date format: {}", date));
   let date_str = date_cap
     .get(0)
-    .expect(format!("Wrong date format: {}", date).as_str())
+    .unwrap_or_else(|| panic!("Wrong date format: {}", date))
     .as_str()
     .to_owned();
 
   NaiveDate::parse_from_str(date_str.trim(), "%_d.%_m.%y")
-    .expect(format!("Wrong date format: {}", date).as_str())
+    .unwrap_or_else(|_| panic!("Wrong date format: {}", date))
 }
 
 fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
@@ -49,10 +49,10 @@ fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
     if let [start, stop] = time.split(&['-', '–']).collect::<Vec<&str>>().as_slice() {
       (
         NaiveTime::parse_from_str(start.trim(), "%H:%M")
-          .expect(format!("Wrong time format: {}", time).as_str()), // TODO: Add error handling
+          .unwrap_or_else(|_| panic!("Wrong time format: {}", time)), // TODO: Add error handling
         Some(
           NaiveTime::parse_from_str(stop.trim(), "%H:%M")
-            .expect(format!("Wrong time format: {}", time).as_str()),
+            .unwrap_or_else(|_| panic!("Wrong time format: {}", time)),
         ), // TODO: Add error handling
       )
     } else {
@@ -61,7 +61,7 @@ fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
   } else {
     (
       NaiveTime::parse_from_str(time.trim(), "%H:%M")
-        .expect(format!("Wrong time format: {}", time).as_str()), // TODO: Add error handling
+        .unwrap_or_else(|_| panic!("Wrong time format: {}", time)), // TODO: Add error handling
       None,
     )
   }
@@ -72,27 +72,25 @@ fn add_corresponding_stop_time(schedule_entries: Vec<ScheduleEntry>) -> Vec<Sche
     return schedule_entries;
   }
 
-  let mut previous_start_time = schedule_entries.last().unwrap().start_stop_time.0.clone();
-  let mut previous_date = schedule_entries.last().unwrap().date.clone();
+  let mut previous_start_time = schedule_entries.last().unwrap().start_stop_time.0;
+  let mut previous_date = schedule_entries.last().unwrap().date;
   let mut new_schedule_entries = vec![];
 
   for (i, entry) in schedule_entries.into_iter().rev().enumerate() {
-    let previous_date_tmp = entry.date.clone();
-    let previous_start_time_tmp = entry.start_stop_time.0.clone();
+    let previous_date_tmp = entry.date;
+    let previous_start_time_tmp = entry.start_stop_time.0;
     if !previous_date.eq(&entry.date) || i == 0 {
       new_schedule_entries.push(entry);
+    } else if entry.start_stop_time.1.is_none() {
+      new_schedule_entries.push(ScheduleEntry::new(
+        entry.date,
+        (entry.start_stop_time.0, Some(previous_start_time)),
+        entry.scenes,
+        entry.room,
+        entry.note,
+      ))
     } else {
-      if entry.start_stop_time.1.is_none() {
-        new_schedule_entries.push(ScheduleEntry::new(
-          entry.date,
-          (entry.start_stop_time.0, Some(previous_start_time)),
-          entry.scenes,
-          entry.room,
-          entry.note,
-        ))
-      } else {
-        new_schedule_entries.push(entry);
-      }
+      new_schedule_entries.push(entry);
     }
     previous_date = previous_date_tmp;
     previous_start_time = previous_start_time_tmp;
@@ -150,13 +148,9 @@ pub mod excel {
       }
 
       let date = if let Some(date) = parse_date_from_excel(&row[0]) {
-        previous_date = Some(date.clone());
+        previous_date = Some(date);
         Some(date)
-      } else if let Some(previous_date) = previous_date {
-        Some(previous_date)
-      } else {
-        None // TODO:
-      };
+      } else { previous_date };
       let start_stop_time = parse_time_from_excel(&row[1]);
       let scenes = parse_scenes_from_excel(&row[2]);
       let room = parse_room_from_excel(&row[3]);

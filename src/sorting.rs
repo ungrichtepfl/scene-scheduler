@@ -39,7 +39,7 @@ pub fn get_person_to_scene_and_schedule_entry<'a>(
   let mut person_to_scene_and_schedule_entry = vec![];
   for person in all_persons {
     let schedule_entries_for_person = schedule_to_scene_entries
-      .into_iter()
+      .iter()
       .filter(|(_, scene_entry)| {
         if let Some(scene_entry) = scene_entry {
           scene_entry.who == person
@@ -70,15 +70,13 @@ pub fn filter_by_silent_play<'a>(
     });
     if any_non_silent_play {
       filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
-    } else {
-      if let Some(silent_play_date) = &schedule_entry.date {
-        if *silent_play_date >= *mandatory_silent_play {
-          filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
-        }
-      } else {
-        // if date is not set, keep the entry
+    } else if let Some(silent_play_date) = &schedule_entry.date {
+      if *silent_play_date >= *mandatory_silent_play {
         filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
       }
+    } else {
+      // if date is not set, keep the entry
+      filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
     }
   }
   filtered_schedule_to_scene_entries
@@ -88,9 +86,9 @@ pub fn filter_by_non_empty_schedule_entry_date<'a>(
   schedule_to_scene_entries: &'a Vec<(&ScheduleEntry, Option<&SceneEntry>)>,
 ) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
   schedule_to_scene_entries
-    .into_iter()
+    .iter()
     .filter_map(|(schedule_entry, scene_entry)| {
-      if !schedule_entry.date.is_none() {
+      if schedule_entry.date.is_some() {
         Some((*schedule_entry, *scene_entry))
       } else {
         None

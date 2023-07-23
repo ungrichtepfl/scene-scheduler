@@ -79,9 +79,9 @@ fn get_start_and_end_time_utc(
 ) -> (String, String) {
   let (start_date_time_naive, stop_date_time_opt) = start_end_date_time;
 
-  let start_date = naive_to_date_time(&start_date_time_naive);
+  let start_date = naive_to_date_time(start_date_time_naive);
   let stop_date = if let Some(stop_date_time_naive) = stop_date_time_opt {
-    naive_to_date_time(&stop_date_time_naive)
+    naive_to_date_time(stop_date_time_naive)
   } else {
     start_date + Duration::hours(DEFAULT_EVENT_DURATION_HOURS)
   };

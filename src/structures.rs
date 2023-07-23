@@ -75,10 +75,7 @@ impl ScheduleEntry {
     match self.date {
       Some(date) => {
         let start_date_time = date.and_time(self.start_stop_time.0);
-        let stop_date_time = match self.start_stop_time.1 {
-          Some(stop_time) => Some(date.and_time(stop_time)),
-          None => None,
-        };
+        let stop_date_time = self.start_stop_time.1.map(|stop_time| date.and_time(stop_time));
         Some((start_date_time, stop_date_time))
       }
       None => None,
@@ -113,15 +110,15 @@ impl ScheduleEntry {
       Some(n) => n.to_owned(),
       None => "None".to_owned(),
     };
-    let uuid = md5::compute(format!(
+    
+    md5::compute(format!(
       "{}{}{}{}{}",
       date_str,
       start_stop_time_str,
       scenes.join(""),
       room_str,
       note_str,
-    ));
-    uuid
+    ))
   }
 }
 

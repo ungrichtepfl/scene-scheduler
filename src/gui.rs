@@ -135,7 +135,7 @@ impl Sandbox for Gui {
 
         match path.unwrap() {
           Some(path) => self.scheduler.config.excel_file_path = path.to_string_lossy().to_string(),
-          None => return,
+          None => (),
         }
       }
       Message::ChooseOutDir => {
@@ -162,7 +162,7 @@ impl Sandbox for Gui {
 
         match path.unwrap() {
           Some(path) => self.scheduler.config.out_dir = path.to_string_lossy().to_string(),
-          None => return,
+          None => (),
         }
       }
       Message::RunProgram => {
@@ -226,7 +226,6 @@ impl Sandbox for Gui {
                 value
               ))
               .show_alert();
-            return;
           }
           Ok(value_usize) => {
             self.scheduler.config.scene_sheet_num = value_usize;
