@@ -1,9 +1,15 @@
 use crate::config::{SCENE_MARK, SILENT_PLAY_MARK};
 use crate::structures::{Note, Room, Scene, ScheduleEntry};
 use chrono::{NaiveDate, NaiveTime};
+use lazy_static::lazy_static;
+use regex::Regex;
 
 fn parse_scenes(scenes: &String) -> Vec<Scene> {
-  if scenes.contains("Gesamtdurchlauf") || scenes.contains("Aufführung") || scenes.contains("x") {
+  if scenes.contains("Gesamtdurchlauf")
+    || scenes.contains("Aufführung")
+    || scenes.contains("x")
+    || scenes.trim() == "-"
+  {
     return vec![];
   }
   scenes
@@ -20,52 +26,42 @@ fn parse_room(room: &String) -> Room {
   room.trim().to_owned()
 }
 
-fn parse_date(date: &String) -> NaiveDate {
-  if !["Mo.", "Di.", "Mi.", "Do.", "Fr.", "Sa.", "So."]
-    .iter()
-    .any(|s| date.contains(s))
-  {
-    todo!("Add parser error when not a date. Date: {date:?}"); // TODO:
-  }
-  let english_date = change_german_days_to_englisch(date);
-  // TODO: Add error handling
-  NaiveDate::parse_from_str(english_date.trim(), "%a. %_d.%_m.%y").unwrap()
+lazy_static! {
+  static ref DATE_REGEX: Regex = Regex::new(r"\d\d?\.\d\d?\.\d\d").expect("Wrong static regex");
 }
+fn parse_date(date: &String) -> NaiveDate {
+  // TODO: Add error handling
+  let date_cap = DATE_REGEX
+    .captures(date)
+    .expect(format!("Wrong date format: {}", date).as_str());
+  let date_str = date_cap
+    .get(0)
+    .expect(format!("Wrong date format: {}", date).as_str())
+    .as_str()
+    .to_owned();
 
-fn change_german_days_to_englisch(date: &String) -> String {
-  if date.contains("Mo") {
-    date.replace("Mo", "Mon")
-  } else if date.contains("Di") {
-    date.replace("Di", "Tue")
-  } else if date.contains("Mi") {
-    date.replace("Mi", "Wed")
-  } else if date.contains("Do") {
-    date.replace("Do", "Thu")
-  } else if date.contains("Fr") {
-    date.replace("Fr", "Fri")
-  } else if date.contains("Sa") {
-    date.replace("Sa", "Sat")
-  } else if date.contains("So") {
-    date.replace("So", "Sun")
-  } else {
-    date.clone()
-  }
+  NaiveDate::parse_from_str(date_str.trim(), "%_d.%_m.%y")
+    .expect(format!("Wrong date format: {}", date).as_str())
 }
 
 fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
   if time.contains('-') || time.contains('–') {
     if let [start, stop] = time.split(&['-', '–']).collect::<Vec<&str>>().as_slice() {
       (
-        NaiveTime::parse_from_str(start.trim(), "%H:%M").unwrap(), // TODO: Add error handling
-        Some(NaiveTime::parse_from_str(stop.trim(), "%H:%M").unwrap()), // TODO: Add error handling
+        NaiveTime::parse_from_str(start.trim(), "%H:%M")
+          .expect(format!("Wrong time format: {}", time).as_str()), // TODO: Add error handling
+        Some(
+          NaiveTime::parse_from_str(stop.trim(), "%H:%M")
+            .expect(format!("Wrong time format: {}", time).as_str()),
+        ), // TODO: Add error handling
       )
     } else {
       todo!() // TODO: Add error handling
     }
   } else {
-    dbg!(time.clone());
     (
-      NaiveTime::parse_from_str(time.trim(), "%H:%M").unwrap(), // TODO: Add error handling
+      NaiveTime::parse_from_str(time.trim(), "%H:%M")
+        .expect(format!("Wrong time format: {}", time).as_str()), // TODO: Add error handling
       None,
     )
   }
@@ -116,7 +112,7 @@ pub mod excel {
   pub fn parse_mandatory_silent_play_and_place(
     excel_range: &Range<DataType>,
   ) -> Result<(Option<NaiveDate>, Room), ExcelParseError> {
-    let first_row = excel_range.rows().next().unwrap(); // TODO: Add error handling
+    let first_row = excel_range.rows().next().expect("No rows found in excel."); // TODO: Add error handling
     if first_row.len() < 5 {
       todo!("Add parser error when less than 5 rows."); // TODO:
     }
