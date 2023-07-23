@@ -8,11 +8,13 @@ pub fn get_schedule_to_scene_entry<'a>(
 ) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
   let mut schedule_to_scene_entries = vec![];
   for schedule_entry in schedule_entries {
+    if schedule_entry.scenes.is_empty() {
+      // When no scenes are specified, all scenes are played or not yet known
+      schedule_to_scene_entries.push((schedule_entry, None));
+      continue;
+    }
     for scene_entry in scene_entries {
-      if schedule_entry.scenes.is_empty() {
-        // When no scenes are specified, all scenes are played or not yet known
-        schedule_to_scene_entries.push((schedule_entry, None));
-      } else if scene_entry
+      if scene_entry
         .scenes
         .iter()
         .any(|s| schedule_entry.scenes.contains(s))
@@ -42,7 +44,8 @@ pub fn get_person_to_scene_and_schedule_entry<'a>(
         if let Some(scene_entry) = scene_entry {
           scene_entry.who == person
         } else {
-          false
+          // if no scene entry this means that all scenes will be played
+          true
         }
       })
       .collect();

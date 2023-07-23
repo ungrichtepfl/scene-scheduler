@@ -49,7 +49,9 @@ pub fn write_ics_file(
         if let Some(scene_entry) = scene_entry {
           description.push_str(format!("Rolle: {}\n", scene_entry.role).as_str());
         };
-        if !schedule_entry.scenes.is_empty() {
+        if schedule_entry.scenes.is_empty() {
+          description.push_str("Szenen: Alle Szenen\n");
+        } else {
           description.push_str(format!("Szenen: {}\n", schedule_entry.scenes.join(", ")).as_str());
         };
         if let Some(note) = &schedule_entry.note {
