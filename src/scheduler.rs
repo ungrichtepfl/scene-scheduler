@@ -1,7 +1,7 @@
+use crate::config::*;
 use crate::ics::*;
 use crate::io::{excel::*, parsing::excel::*};
 use crate::sorting::*;
-use crate::structures::*;
 
 #[derive(Debug)]
 pub struct Scheduler {

@@ -1,5 +1,6 @@
+use crate::config::{Config, GUI_CONFIG_FILE, GUI_TITLE};
 use crate::scheduler::Scheduler;
-use crate::structures::{Config, ThemeType};
+use crate::structures::ThemeType;
 use iced::theme::Theme;
 use iced::widget::{
   button, column, container, horizontal_rule, radio, row, scrollable, text, text_input,
@@ -21,8 +22,6 @@ pub enum Message {
   RunProgram,
   CloseProgram,
 }
-
-const GUI_CONFIG_FILE: &'static str = "gui_config.json";
 
 #[derive(Serialize, Deserialize)]
 pub struct GuiConfig {
@@ -90,7 +89,7 @@ impl Sandbox for Gui {
   }
 
   fn title(&self) -> String {
-    String::from("Scene Scheduler")
+    String::from(GUI_TITLE)
   }
 
   fn update(&mut self, message: Message) {
@@ -172,8 +171,8 @@ impl Sandbox for Gui {
           Ok(_) => {
             _ = MessageDialog::new()
               .set_type(MessageType::Info)
-              .set_title("Success")
-              .set_text("Successfully generated ics files")
+              .set_title("Hurra!")
+              .set_text("Alle ICS Dateien wurden generiert!")
               .show_alert();
           }
           Err(e) => {
@@ -240,7 +239,7 @@ impl Sandbox for Gui {
 
   fn view(&self) -> Element<Message> {
     let choose_theme = [ThemeType::Light, ThemeType::Dark].iter().fold(
-      column![text("Choose a theme:")].spacing(10),
+      column![text("Farbschema:")].spacing(10),
       |column, theme| {
         column.push(radio(
           format!("{theme:?}"),
@@ -255,14 +254,14 @@ impl Sandbox for Gui {
       },
     );
 
-    let title = text("Scene Scheduler")
+    let title = text(GUI_TITLE)
       .width(Length::Fill)
       .size(30)
       .style(Color::from([0.5, 0.5, 0.5]))
       .horizontal_alignment(alignment::Horizontal::Center);
 
     let excel_file_path_input = text_input(
-      "Excel file path",
+      "Szenenplan Excel",
       &self.scheduler.config.excel_file_path,
       Message::ExcelPathChanged,
     )
@@ -270,14 +269,14 @@ impl Sandbox for Gui {
     .size(20);
 
     let out_dir_input = text_input(
-      "ICS files out directory.",
+      "Ausgabeordner für ICS Dateien",
       &self.scheduler.config.out_dir,
       Message::OutDirChanged,
     )
     .padding(10)
     .size(20);
 
-    let scene_sheet_num_label = text("Scene info sheet number:")
+    let scene_sheet_num_label = text("Arbeitsblatt Nummer für den Einsatzplan:")
       .width(Length::Fill)
       .size(15)
       .style(Color::from([0.5, 0.5, 0.5]))
@@ -287,14 +286,14 @@ impl Sandbox for Gui {
       None => "".to_string(),
     };
     let scene_sheet_num_input = text_input(
-      "Schedule sheet number",
+      "Einsatzplan Nummer",
       &scene_sheet_num_input_value,
       Message::SceneSheetNumChanged,
     )
     .padding(10)
     .size(20);
 
-    let schedule_sheet_num_label = text("Schedule sheet number:")
+    let schedule_sheet_num_label = text("Arbeitsblatt Nummer für den Terminplan:")
       .width(Length::Fill)
       .size(15)
       .style(Color::from([0.5, 0.5, 0.5]))
@@ -305,26 +304,28 @@ impl Sandbox for Gui {
       None => "".to_string(),
     };
     let schedule_sheet_num_input = text_input(
-      "Schedule info sheet number",
+      "Terminplan Nummer",
       &schedule_sheet_num_input_value,
       Message::ScheduleSheetNumChanged,
     )
     .padding(10)
     .size(20);
 
-    let generate_ics_button = button("Generate ICS Files.")
+    let generate_ics_button = button("Generiere ICS Dateine")
       .padding(10)
       .on_press(Message::RunProgram);
 
-    let choose_excel_file_button = button("Choose Excel File")
+    let choose_excel_file_button = button("Wähle eine Excel Datei")
       .padding(10)
       .on_press(Message::ChooseExcelFile);
 
-    let choose_out_dir_button = button("Choose Out Dir")
+    let choose_out_dir_button = button("Wähle ICS Ausgabe Ordner")
       .padding(10)
       .on_press(Message::ChooseOutDir);
 
-    let close_button = button("Close").padding(10).on_press(Message::CloseProgram);
+    let close_button = button("Schliessen")
+      .padding(10)
+      .on_press(Message::CloseProgram);
 
     let content = column![
       title,

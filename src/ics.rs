@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::structures::{Person, SceneEntry, ScheduleEntry};
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone};
 use chrono_tz::{Europe::Zurich, Tz};
@@ -20,7 +22,7 @@ pub fn write_ics_file(
 
   for (person, schedule_to_scene_entries) in person_to_scene_and_schedule_entry {
     // dtsart.format("%Y%m%dT%H%M%SZ").to_string()
-    let mut calendar = ICalendar::new("2.0", "-//EnsembLee//NONSGML Scene Scheduler//DE");
+    let mut calendar = ICalendar::new("2.0", "-//Fungiking//NONSGML Scene Scheduler//DE");
     for (schedule_entry, scene_entry) in schedule_to_scene_entries {
       if let Some(start_end_date_time_naive) = schedule_entry.start_stop_date_time() {
         let (start_date_time_str, stop_date_time_str) =
@@ -51,7 +53,7 @@ pub fn write_ics_file(
           description.push_str(format!("Szenen: {}\n", schedule_entry.scenes.join(", ")).as_str());
         };
         if let Some(note) = &schedule_entry.note {
-          description.push_str(format!("Beschreibung: {}\n", note).as_str());
+          description.push_str(format!("Anmerkung: {}\n", note).as_str());
         };
         event.push(Description::new(escape_text(description)));
         // add event to calendar
@@ -63,7 +65,9 @@ pub fn write_ics_file(
     }
 
     // write calendar to file
-    calendar.save_file(format!("{}/{}.ics", out_dir, person))?;
+    let mut out_file_path = Path::new(out_dir).join(person);
+    out_file_path.set_extension("ics");
+    calendar.save_file(out_file_path)?;
   }
   Ok(())
 }

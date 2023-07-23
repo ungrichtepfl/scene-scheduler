@@ -6,7 +6,10 @@ fn parse_scenes(scenes: &String) -> Vec<Scene> {
   if scenes.contains("Gesamtdurchlauf") || scenes.contains("Aufführung") || scenes.contains("x") {
     return vec![];
   }
-  scenes.split("/").map(|s| s.trim().to_owned()).collect()
+  scenes
+    .split(&['/', ','])
+    .map(|s| s.trim().to_owned())
+    .collect()
 }
 
 fn parse_note(note: &String) -> Note {
@@ -50,8 +53,8 @@ fn change_german_days_to_englisch(date: &String) -> String {
 }
 
 fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
-  if time.contains("-") {
-    if let [start, stop] = time.split('-').collect::<Vec<&str>>().as_slice() {
+  if time.contains('-') || time.contains('–') {
+    if let [start, stop] = time.split(&['-', '–']).collect::<Vec<&str>>().as_slice() {
       (
         NaiveTime::parse_from_str(start.trim(), "%H:%M").unwrap(), // TODO: Add error handling
         Some(NaiveTime::parse_from_str(stop.trim(), "%H:%M").unwrap()), // TODO: Add error handling
@@ -60,6 +63,7 @@ fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
       todo!() // TODO: Add error handling
     }
   } else {
+    dbg!(time.clone());
     (
       NaiveTime::parse_from_str(time.trim(), "%H:%M").unwrap(), // TODO: Add error handling
       None,
@@ -113,8 +117,8 @@ pub mod excel {
     excel_range: &Range<DataType>,
   ) -> Result<(Option<NaiveDate>, Room), ExcelParseError> {
     let first_row = excel_range.rows().next().unwrap(); // TODO: Add error handling
-    if first_row.len() != 5 {
-      todo!("Add parser error when more than 5 rows."); // TODO:
+    if first_row.len() < 5 {
+      todo!("Add parser error when less than 5 rows."); // TODO:
     }
     let mandatory_silent_play = parse_date_from_excel(&first_row[1]);
     let room = parse_room_from_excel(&first_row[3]);
@@ -135,8 +139,8 @@ pub mod excel {
       if i == 0 {
         continue;
       }
-      if row.len() != 5 {
-        todo!("Add parser error when more than 5 rows."); // TODO:
+      if row.len() < 5 {
+        todo!("Add parser error when less than 5 rows."); // TODO:
       }
 
       if !start_parsing {
