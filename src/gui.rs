@@ -257,19 +257,17 @@ impl Sandbox for Gui {
       .style(Color::from([0.5, 0.5, 0.5]))
       .horizontal_alignment(alignment::Horizontal::Center);
 
-    let excel_file_path_input = text_input(
-      "Szenenplan Excel",
-      &self.scheduler.config.excel_file_path,
-      Message::ExcelPathChanged,
-    )
-    .padding(10)
-    .size(20);
+    let excel_file_path_input =
+      text_input("Szenenplan Excel", &self.scheduler.config.excel_file_path)
+        .on_input(Message::ExcelPathChanged)
+        .padding(10)
+        .size(20);
 
     let out_dir_input = text_input(
       "Ausgabeordner für ICS Dateien",
       &self.scheduler.config.out_dir,
-      Message::OutDirChanged,
     )
+    .on_input(Message::OutDirChanged)
     .padding(10)
     .size(20);
 
@@ -282,13 +280,10 @@ impl Sandbox for Gui {
       Some(num) => num.to_string(),
       None => "".to_string(),
     };
-    let scene_sheet_num_input = text_input(
-      "Einsatzplan Nummer",
-      &scene_sheet_num_input_value,
-      Message::SceneSheetNumChanged,
-    )
-    .padding(10)
-    .size(20);
+    let scene_sheet_num_input = text_input("Einsatzplan Nummer", &scene_sheet_num_input_value)
+      .on_input(Message::SceneSheetNumChanged)
+      .padding(10)
+      .size(20);
 
     let schedule_sheet_num_label = text("Arbeitsblatt Nummer für den Terminplan:")
       .width(Length::Fill)
@@ -300,13 +295,10 @@ impl Sandbox for Gui {
       Some(num) => num.to_string(),
       None => "".to_string(),
     };
-    let schedule_sheet_num_input = text_input(
-      "Terminplan Nummer",
-      &schedule_sheet_num_input_value,
-      Message::ScheduleSheetNumChanged,
-    )
-    .padding(10)
-    .size(20);
+    let schedule_sheet_num_input = text_input("Terminplan Nummer", &schedule_sheet_num_input_value)
+      .on_input(Message::ScheduleSheetNumChanged)
+      .padding(10)
+      .size(20);
 
     let generate_ics_button = button("Generiere ICS Dateine")
       .padding(10)

@@ -77,7 +77,10 @@ impl ScheduleEntry {
     match self.date {
       Some(date) => {
         let start_date_time = date.and_time(self.start_stop_time.0);
-        let stop_date_time = self.start_stop_time.1.map(|stop_time| date.and_time(stop_time));
+        let stop_date_time = self
+          .start_stop_time
+          .1
+          .map(|stop_time| date.and_time(stop_time));
         Some((start_date_time, stop_date_time))
       }
       None => None,
@@ -112,7 +115,7 @@ impl ScheduleEntry {
       Some(n) => n.to_owned(),
       None => "None".to_owned(),
     };
-    
+
     md5::compute(format!(
       "{}{}{}{}{}",
       date_str,
