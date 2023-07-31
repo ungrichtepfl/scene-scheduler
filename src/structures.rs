@@ -1,7 +1,6 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::fmt;
+use thiserror::Error;
 
 pub type Person = String;
 pub type Scene = String;
@@ -11,23 +10,26 @@ pub type Role = String;
 pub type PersonToSceneAndScheduleEntry<'a> =
   Vec<(Person, Vec<&'a (&'a ScheduleEntry, Option<&'a SceneEntry>)>)>;
 
-#[derive(Debug)]
-pub struct ExcelParseError {
-  file: String,
-  sheet: usize,
-  row: usize,
-  column: usize,
-  token: String,
-  expected: String,
+#[derive(Error, Debug)]
+pub enum SceneSchedulerError {
+  #[error("Error while reading the excel file with calamine: {0}")]
+  Calamine(#[from] calamine::Error),
+  #[error("IO error: {0}")]
+  Io(#[from] std::io::Error),
+  #[error("Could not run gui: {0}")]
+  Iced(#[from] iced::Error),
+  #[error("Could not deserialize or serialize data: {0}")]
+  SerdeJson(#[from] serde_json::Error),
+  #[error("Parsing error for file '{file}' in sheet number '{sheet}' (row {row}, column {column}). {expected}. Unexpected token '{token}'.")]
+  ExcelParseError {
+    file: String,
+    sheet: usize,
+    row: usize,
+    column: usize,
+    token: String,
+    expected: String,
+  },
 }
-
-impl fmt::Display for ExcelParseError {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "Parsing error for file '{}' in sheet number '{}' (row {}, column {}). {}. Unexpected token '{}'.", self.file, self.sheet, self.row, self.column, self.expected,self.token)
-  }
-}
-
-impl Error for ExcelParseError {}
 
 #[derive(Debug)]
 pub struct SceneEntry {

@@ -2,17 +2,18 @@ use crate::config::*;
 use crate::ics::*;
 use crate::io::{excel::*, parsing::excel::*};
 use crate::sorting::*;
+use crate::structures::SceneSchedulerError;
 
 #[derive(Debug)]
 pub struct Scheduler {
   pub config: Config,
 }
 impl Scheduler {
-  pub fn process(&self) -> Result<(), Box<dyn std::error::Error>> {
+  pub fn process(&self) -> Result<(), SceneSchedulerError> {
     let schedule_excel_range =
       read_excel(&self.config.excel_file_path, self.config.schedule_sheet_num)?;
     let schedule_entries = parse_schedule_plan_content(&schedule_excel_range)?;
-    let (mandatory_silet_play, location) =
+    let (mandatory_silet_play, location): (_, String) =
       parse_mandatory_silent_play_and_place(&schedule_excel_range)?;
     let scene_excel_range = read_excel(&self.config.excel_file_path, self.config.scene_sheet_num)?;
     let scene_entries = parse_scene_plan_content(scene_excel_range)?;

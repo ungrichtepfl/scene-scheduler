@@ -8,8 +8,9 @@ mod structures;
 
 use gui::Gui;
 use iced::{Sandbox, Settings};
+use structures::SceneSchedulerError;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), SceneSchedulerError> {
   Gui::run(Settings::default())?;
 
   Ok(())

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::error::Error;
+
+use crate::structures::SceneSchedulerError;
 
 pub const SCENE_MARK: &str = "x";
 pub const SILENT_PLAY_MARK: &str = "s";
@@ -18,7 +19,7 @@ pub struct Config {
 }
 
 impl Config {
-  pub fn load() -> Result<Self, Box<dyn Error>> {
+  pub fn load() -> Result<Self, SceneSchedulerError> {
     let config_file_path = CONFIG_FILE;
     if !std::path::Path::new(config_file_path).exists() {
       return Ok(Self::default());
@@ -29,7 +30,7 @@ impl Config {
     Ok(config)
   }
 
-  pub fn save(&self) -> Result<(), Box<dyn Error>> {
+  pub fn save(&self) -> Result<(), SceneSchedulerError> {
     let config_file_path = CONFIG_FILE;
     let config_file = std::fs::File::create(config_file_path)?;
     serde_json::to_writer_pretty(config_file, self)?;

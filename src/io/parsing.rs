@@ -1,5 +1,5 @@
 use crate::config::{SCENE_MARK, SILENT_PLAY_MARK};
-use crate::structures::{Note, Room, Scene, ScheduleEntry};
+use crate::structures::{Note, Room, Scene, SceneSchedulerError, ScheduleEntry};
 use chrono::{NaiveDate, NaiveTime};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -105,11 +105,11 @@ pub mod excel {
   use calamine::{DataType, Range};
   use chrono::NaiveDate;
 
-  use crate::structures::{ExcelParseError, SceneEntry, ScheduleEntry};
+  use crate::structures::{SceneEntry, ScheduleEntry};
 
   pub fn parse_mandatory_silent_play_and_place(
     excel_range: &Range<DataType>,
-  ) -> Result<(Option<NaiveDate>, Room), ExcelParseError> {
+  ) -> Result<(Option<NaiveDate>, Room), SceneSchedulerError> {
     let first_row = excel_range.rows().next().expect("No rows found in excel."); // TODO: Add error handling
     if first_row.len() < 5 {
       todo!("Add parser error when less than 5 rows."); // TODO:
@@ -125,7 +125,7 @@ pub mod excel {
 
   pub fn parse_schedule_plan_content(
     excel_range: &Range<DataType>,
-  ) -> Result<Vec<ScheduleEntry>, ExcelParseError> {
+  ) -> Result<Vec<ScheduleEntry>, SceneSchedulerError> {
     let mut start_parsing = false;
     let mut previous_date: Option<NaiveDate> = None;
     let mut schedule_entries = vec![];
@@ -217,7 +217,7 @@ pub mod excel {
 
   pub fn parse_scene_plan_content(
     excel_range: Range<DataType>,
-  ) -> Result<Vec<SceneEntry>, ExcelParseError> {
+  ) -> Result<Vec<SceneEntry>, SceneSchedulerError> {
     let mut all_scenes = vec![];
     let mut scene_entries = vec![];
     let scene_start_index = 2;
