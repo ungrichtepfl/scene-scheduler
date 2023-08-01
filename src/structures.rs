@@ -20,15 +20,23 @@ pub enum SceneSchedulerError {
   Iced(#[from] iced::Error),
   #[error("Could not deserialize or serialize data: {0}")]
   SerdeJson(#[from] serde_json::Error),
-  #[error("Parsing error for file '{file}' in sheet number '{sheet}' (row {row}, column {column}). {expected}. Unexpected token '{token}'.")]
+  #[error("Parsing error for file '{file}' in sheet '{sheet}' (row {row}, column {column}). {expected} Unexpected token '{token}'.")]
   ExcelParseError {
     file: String,
-    sheet: usize,
+    sheet: String,
     row: usize,
     column: usize,
     token: String,
     expected: String,
   },
+  #[error("Error while reading the excel file: {file}. {message}")]
+  ExcelError {
+    file: String,
+    message: String,
+    sheet: String,
+  },
+  #[error("Error during writing of the ics files. {0}")]
+  Ics(String),
 }
 
 #[derive(Debug)]
@@ -48,7 +56,7 @@ impl SceneEntry {
 
 #[derive(Debug)]
 pub struct ScheduleEntry {
-  pub date: Option<NaiveDate>,
+  pub date: NaiveDate,
   pub start_stop_time: (NaiveTime, Option<NaiveTime>),
   pub scenes: Vec<Scene>,
   pub room: Option<Room>,
@@ -58,7 +66,7 @@ pub struct ScheduleEntry {
 
 impl ScheduleEntry {
   pub fn new(
-    date: Option<NaiveDate>,
+    date: NaiveDate,
     start_stop_time: (NaiveTime, Option<NaiveTime>),
     scenes: Vec<Scene>,
     room: Option<Room>,
@@ -75,33 +83,25 @@ impl ScheduleEntry {
     }
   }
 
-  pub fn start_stop_date_time(&self) -> Option<(NaiveDateTime, Option<NaiveDateTime>)> {
-    match self.date {
-      Some(date) => {
-        let start_date_time = date.and_time(self.start_stop_time.0);
-        let stop_date_time = self
-          .start_stop_time
-          .1
-          .map(|stop_time| date.and_time(stop_time));
-        Some((start_date_time, stop_date_time))
-      }
-      None => None,
-    }
+  pub fn start_stop_date_time(&self) -> (NaiveDateTime, Option<NaiveDateTime>) {
+    let start_date_time = self.date.and_time(self.start_stop_time.0);
+    let stop_date_time = self
+      .start_stop_time
+      .1
+      .map(|stop_time| self.date.and_time(stop_time));
+    (start_date_time, stop_date_time)
   }
 
   fn get_uuid(
     scenes: &Vec<String>,
-    date: &Option<NaiveDate>,
+    date: &NaiveDate,
     start_stop_time: &(NaiveTime, Option<NaiveTime>),
     room: &Option<String>,
     note: &Option<String>,
   ) -> md5::Digest {
     let mut scenes = scenes.to_owned();
     scenes.sort_unstable();
-    let date_str = match date {
-      Some(d) => d.format("%Y-%m-%d").to_string(),
-      None => "None".to_owned(),
-    };
+    let date_str = date.format("%Y-%m-%d").to_string();
     fn time_str(time: NaiveTime) -> String {
       time.format("%H:%M").to_string()
     }

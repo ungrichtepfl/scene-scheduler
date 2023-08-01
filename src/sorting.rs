@@ -70,31 +70,13 @@ pub fn filter_by_silent_play<'a>(
     });
     if any_non_silent_play {
       filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
-    } else if let Some(silent_play_date) = &schedule_entry.date {
-      if *silent_play_date >= *mandatory_silent_play {
+    } else {
+      if schedule_entry.date >= *mandatory_silent_play {
         filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
       }
-    } else {
-      // if date is not set, keep the entry
-      filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
     }
   }
   filtered_schedule_to_scene_entries
-}
-
-pub fn filter_by_non_empty_schedule_entry_date<'a>(
-  schedule_to_scene_entries: &'a [(&ScheduleEntry, Option<&SceneEntry>)],
-) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
-  schedule_to_scene_entries
-    .iter()
-    .filter_map(|(schedule_entry, scene_entry)| {
-      if schedule_entry.date.is_some() {
-        Some((*schedule_entry, *scene_entry))
-      } else {
-        None
-      }
-    })
-    .collect()
 }
 
 #[cfg(test)]
@@ -110,21 +92,14 @@ mod tests {
   fn test_data() -> (Vec<ScheduleEntry>, Vec<SceneEntry>) {
     let schedule_entries: Vec<ScheduleEntry> = vec![
       ScheduleEntry::new(
-        None,
-        (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
-        vec!["Scene 1".to_string(), "Scene 2".to_string()],
-        Some("Room 1".to_string()),
-        None,
-      ),
-      ScheduleEntry::new(
-        Some(NaiveDate::from_ymd_opt(2022, 5, 1).unwrap()),
+        NaiveDate::from_ymd_opt(2022, 5, 1).unwrap(),
         (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
         vec!["Scene 3".to_string()],
         Some("Room 1".to_string()),
         None,
       ),
       ScheduleEntry::new(
-        Some(NaiveDate::from_ymd_opt(2022, 7, 1).unwrap()),
+        NaiveDate::from_ymd_opt(2022, 7, 1).unwrap(),
         (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
         vec!["Scene 4".to_string(), "Scene 5".to_string()],
         None,
@@ -235,19 +210,6 @@ mod tests {
       filtered_schedule_to_scene_entries.len(),
       4,
       "Should have 4 entries for each scene",
-    );
-  }
-
-  #[test]
-  fn test_filter_by_non_empty_schedule_entry_date() {
-    let (schedule_entries, scene_entries) = test_data();
-    let schedule_to_scene_entries = get_schedule_to_scene_entry(&schedule_entries, &scene_entries);
-    let filtered_schedule_to_scene_entries =
-      filter_by_non_empty_schedule_entry_date(&schedule_to_scene_entries);
-    assert_eq!(
-      filtered_schedule_to_scene_entries.len(),
-      5,
-      "Should have 5 entries for each scene",
     );
   }
 }

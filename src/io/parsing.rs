@@ -9,6 +9,8 @@ fn parse_scenes(scenes: &str) -> Vec<Scene> {
     || scenes.contains("Aufführung")
     || scenes.contains('x')
     || scenes.trim() == "-"
+    || scenes.trim() == "–"
+    || scenes.trim() == ""
   {
     return vec![];
   }
@@ -29,41 +31,25 @@ fn parse_room(room: &str) -> Room {
 lazy_static! {
   static ref DATE_REGEX: Regex = Regex::new(r"\d\d?\.\d\d?\.\d\d").expect("Wrong static regex");
 }
-fn parse_date(date: &str) -> NaiveDate {
-  // TODO: Add error handling
-  let date_cap = DATE_REGEX
-    .captures(date)
-    .unwrap_or_else(|| panic!("Wrong date format: {}", date));
-  let date_str = date_cap
-    .get(0)
-    .unwrap_or_else(|| panic!("Wrong date format: {}", date))
-    .as_str()
-    .to_owned();
+fn parse_date(date: &str) -> Option<NaiveDate> {
+  let date_cap = DATE_REGEX.captures(date)?;
+  let date_str = date_cap.get(0)?.as_str().to_owned();
 
-  NaiveDate::parse_from_str(date_str.trim(), "%_d.%_m.%y")
-    .unwrap_or_else(|_| panic!("Wrong date format: {}", date))
+  NaiveDate::parse_from_str(date_str.trim(), "%_d.%_m.%y").ok()
 }
 
-fn parse_time(time: &String) -> (NaiveTime, Option<NaiveTime>) {
-  if time.contains('-') || time.contains('–') {
-    if let [start, stop] = time.split(&['-', '–']).collect::<Vec<&str>>().as_slice() {
-      (
-        NaiveTime::parse_from_str(start.trim(), "%H:%M")
-          .unwrap_or_else(|_| panic!("Wrong time format: {}", time)), // TODO: Add error handling
-        Some(
-          NaiveTime::parse_from_str(stop.trim(), "%H:%M")
-            .unwrap_or_else(|_| panic!("Wrong time format: {}", time)),
-        ), // TODO: Add error handling
-      )
-    } else {
-      todo!() // TODO: Add error handling
+fn parse_time(time: &String) -> Option<(NaiveTime, Option<NaiveTime>)> {
+  match time.split(&['-', '–']).collect::<Vec<_>>()[..] {
+    [start, stop] => {
+      let start_date = NaiveTime::parse_from_str(start.trim(), "%H:%M").ok()?;
+      let stop_date = NaiveTime::parse_from_str(stop.trim(), "%H:%M").ok()?;
+      Some((start_date, Some(stop_date)))
     }
-  } else {
-    (
-      NaiveTime::parse_from_str(time.trim(), "%H:%M")
-        .unwrap_or_else(|_| panic!("Wrong time format: {}", time)), // TODO: Add error handling
-      None,
-    )
+    [start] => {
+      let start_date = NaiveTime::parse_from_str(start.trim(), "%H:%M").ok()?;
+      Some((start_date, None))
+    }
+    _ => None,
   }
 }
 
@@ -109,22 +95,59 @@ pub mod excel {
 
   pub fn parse_mandatory_silent_play_and_place(
     excel_range: &Range<DataType>,
+    file_path: &str,
+    sheet_name: &str,
   ) -> Result<(Option<NaiveDate>, Room), SceneSchedulerError> {
-    let first_row = excel_range.rows().next().expect("No rows found in excel."); // TODO: Add error handling
-    if first_row.len() < 5 {
-      todo!("Add parser error when less than 5 rows."); // TODO:
+    let first_row = excel_range
+      .rows()
+      .next()
+      .ok_or_else(|| SceneSchedulerError::ExcelError {
+        message: String::from(
+          "No first row found. Needs to contain at least the information about the location.",
+        ),
+        file: file_path.to_owned(),
+        sheet: sheet_name.to_owned(),
+      })?;
+
+    if first_row.len() < 2 {
+      return Err(SceneSchedulerError::ExcelError {
+        message: String::from(
+          "Wrong Excel file format. First row should contain the information about the location.",
+        ),
+        file: file_path.to_owned(),
+        sheet: sheet_name.to_owned(),
+      });
     }
-    let mandatory_silent_play = parse_date_from_excel(&first_row[1]);
-    let room = parse_room_from_excel(&first_row[3]);
-    if let Some(room) = room {
-      Ok((mandatory_silent_play, room))
-    } else {
-      todo!("Add error that room is not set.")
-    }
+    let room =
+      parse_room_from_excel(&first_row[1]).ok_or_else(|| SceneSchedulerError::ExcelParseError {
+        file: file_path.to_owned(),
+        sheet: sheet_name.to_owned(),
+        row: 1,
+        column: 2,
+        expected: String::from("The location should be specified."),
+        token: first_row[1].to_string(),
+      })?;
+    let mandatory_silent_play = match parse_date_from_excel(&first_row[3]) {
+      Some(Some(date)) => Some(date),
+      Some(None) => {
+        return Err(SceneSchedulerError::ExcelParseError {
+          file: file_path.to_owned(),
+          sheet: sheet_name.to_owned(),
+          row: 1,
+          column: 4,
+          expected: String::from("The date should be specified."),
+          token: first_row[3].to_string(),
+        })
+      }
+      None => None,
+    };
+    Ok((mandatory_silent_play, room))
   }
 
   pub fn parse_schedule_plan_content(
     excel_range: &Range<DataType>,
+    file_path: &str,
+    sheet_name: &str,
   ) -> Result<Vec<ScheduleEntry>, SceneSchedulerError> {
     let mut start_parsing = false;
     let mut previous_date: Option<NaiveDate> = None;
@@ -134,7 +157,11 @@ pub mod excel {
         continue;
       }
       if row.len() < 5 {
-        todo!("Add parser error when less than 5 rows."); // TODO:
+        return Err(SceneSchedulerError::ExcelError {
+          message: String::from("Wrong Excel file format. There should be 5 columns."),
+          file: file_path.to_owned(),
+          sheet: sheet_name.to_owned(),
+        });
       }
 
       if !start_parsing {
@@ -147,19 +174,45 @@ pub mod excel {
         }
       }
 
-      let date = if let Some(date) = parse_date_from_excel(&row[0]) {
-        previous_date = Some(date);
-        Some(date)
-      } else {
-        previous_date
+      let date = match parse_date_from_excel(&row[0]) {
+        Some(Some(date)) => {
+          previous_date = Some(date);
+          date
+        }
+        Some(None) => {
+          return Err(SceneSchedulerError::ExcelParseError {
+            file: file_path.to_owned(),
+            sheet: sheet_name.to_owned(),
+            row: i + 1,
+            column: 1,
+            expected: String::from("Wrong date string format should be DD.MM.YY., e.g. 01.01.22."),
+            token: row[0].to_string(),
+          })
+        }
+        None => previous_date.ok_or_else(|| SceneSchedulerError::ExcelParseError {
+          file: file_path.to_owned(),
+          sheet: sheet_name.to_owned(),
+          row: i + 1,
+          column: 1,
+          expected: String::from("The date should be specified."),
+          token: row[0].to_string(),
+        })?,
       };
-      let start_stop_time = parse_time_from_excel(&row[1]);
+      let start_stop_time =
+        parse_time_from_excel(&row[1]).ok_or_else(|| SceneSchedulerError::ExcelParseError {
+          file: file_path.to_owned(),
+          sheet: sheet_name.to_owned(),
+          row: i + 1,
+          column: 2,
+          expected: String::from("Wrong time string format should be HH:MM, e.g. 12:00"),
+          token: row[1].to_string(),
+        })?;
       let scenes = parse_scenes_from_excel(&row[2]);
       let room = parse_room_from_excel(&row[3]);
       let note = parse_note_from_excel(&row[4]);
 
       schedule_entries.push(ScheduleEntry::new(
-        date, // TODO: Remove optional
+        date,
         start_stop_time,
         scenes,
         room,
@@ -185,23 +238,23 @@ pub mod excel {
     }
   }
 
-  fn parse_time_from_excel(time: &DataType) -> (NaiveTime, Option<NaiveTime>) {
+  fn parse_time_from_excel(time: &DataType) -> Option<(NaiveTime, Option<NaiveTime>)> {
     if time == &DataType::Empty {
-      todo!("Add parser error when time is empty.") // TODO:
+      return None;
     }
     if let Some(time) = time.as_time() {
-      (time, None)
+      Some((time, None))
     } else {
       parse_time(&time.to_string())
     }
   }
 
-  fn parse_date_from_excel(date: &DataType) -> Option<NaiveDate> {
+  fn parse_date_from_excel(date: &DataType) -> Option<Option<NaiveDate>> {
     if date == &DataType::Empty {
-      return None; // TODO: Use result.
+      return Some(None); // TODO: Make this better
     }
     if let Some(date) = date.as_date() {
-      Some(date)
+      Some(Some(date))
     } else {
       Some(parse_date(&date.to_string()))
     }
@@ -217,27 +270,58 @@ pub mod excel {
 
   pub fn parse_scene_plan_content(
     excel_range: Range<DataType>,
+    file_path: &str,
+    sheet_name: &str,
   ) -> Result<Vec<SceneEntry>, SceneSchedulerError> {
     let mut all_scenes = vec![];
     let mut scene_entries = vec![];
     let scene_start_index = 2;
     for (i, row) in excel_range.rows().enumerate() {
       if i == 0 {
+        let mut column_index = scene_start_index;
         for scene in &row[scene_start_index..] {
           match scene {
             DataType::String(x) => all_scenes.push(x.to_owned()),
             DataType::Float(x) => all_scenes.push(x.to_string()),
-            _ => todo!("Error handling all scenes"), // TODO: Error handling all scenes
+            _ => {
+              return Err(SceneSchedulerError::ExcelParseError {
+                file: file_path.to_owned(),
+                sheet: sheet_name.to_owned(),
+                row: i + 1,
+                column: column_index + 1,
+                expected: String::from("Scene name should be a string or a float."),
+                token: row[0].to_string(),
+              })
+            }
           }
+          column_index += 1;
         }
       } else {
         let role = match &row[0] {
           DataType::String(x) => x.clone(),
-          _ => todo!("Error handling role"), // TODO: Error handling role
+          _ => {
+            return Err(SceneSchedulerError::ExcelParseError {
+              file: file_path.to_owned(),
+              sheet: sheet_name.to_owned(),
+              row: i + 1,
+              column: 1,
+              expected: String::from("Role should be a string."),
+              token: row[0].to_string(),
+            })
+          }
         };
         let who = match &row[1] {
           DataType::String(x) => x.clone(),
-          _ => todo!("Error handling who"), // TODO: Error handling who
+          _ => {
+            return Err(SceneSchedulerError::ExcelParseError {
+              file: file_path.to_owned(),
+              sheet: sheet_name.to_owned(),
+              row: i + 1,
+              column: 2,
+              expected: String::from("Person who plays the role should be a string."),
+              token: row[1].to_string(),
+            })
+          }
         };
         let mut scenes_for_current_role = vec![];
         let mut silent_play = vec![];
