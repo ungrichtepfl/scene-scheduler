@@ -250,8 +250,8 @@ pub mod excel {
   }
 
   fn parse_date_from_excel(date: &DataType) -> Option<Option<NaiveDate>> {
-    if date == &DataType::Empty {
-      return Some(None); // TODO: Make this better
+    if date == &DataType::Empty || date.to_string().trim().is_empty() {
+      return None; // TODO: Make this better
     }
     if let Some(date) = date.as_date() {
       Some(Some(date))
@@ -297,6 +297,10 @@ pub mod excel {
           column_index += 1;
         }
       } else {
+        if row[0] == DataType::Empty && row[1] == DataType::Empty {
+          // End of scene plan
+          break;
+        }
         let role = match &row[0] {
           DataType::String(x) => x.clone(),
           _ => {

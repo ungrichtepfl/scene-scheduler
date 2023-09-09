@@ -60,6 +60,11 @@ pub fn filter_by_silent_play<'a>(
 ) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
   let mut filtered_schedule_to_scene_entries = vec![];
   for (schedule_entry, scene_entry) in schedule_to_scene_entries {
+    if schedule_entry.scenes.is_empty() {
+      // When no scenes are specified, all scenes are played or not yet known
+      filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
+      continue;
+    }
     let any_non_silent_play = schedule_entry.scenes.iter().any(|scene| {
       if let Some(scene_entry) = scene_entry {
         scene_entry.is_scene_silent_play(scene) == Some(false)
@@ -105,13 +110,20 @@ mod tests {
         None,
         None,
       ),
-      // ScheduleEntry::new(
-      //   Some(NaiveDate::from_ymd(2022, 8, 1)),
-      //   (NaiveTime::from_hms(10, 0, 0), None),
-      //   vec![],
-      //   None,
-      //   None,// TODO: Add test for this
-      // ),
+      ScheduleEntry::new(
+        NaiveDate::from_ymd_opt(2022, 8, 1).unwrap(),
+        (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
+        vec![],
+        None,
+        None,
+      ),
+      ScheduleEntry::new(
+        NaiveDate::from_ymd_opt(2022, 4, 1).unwrap(),
+        (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
+        vec![],
+        None,
+        None,
+      ),
     ];
     let scene_entries = vec![
       SceneEntry {
@@ -150,7 +162,7 @@ mod tests {
   fn test_get_schedule_to_scene_entry() {
     let (schedule_entries, scene_entries) = test_data();
     let schedule_to_scene_entries = get_schedule_to_scene_entry(&schedule_entries, &scene_entries);
-    assert_eq!(schedule_to_scene_entries.len(), 6, "Should have 6 entries.",);
+    assert_eq!(schedule_to_scene_entries.len(), 7, "Should have 7 entries.",);
     for (schedule_entry, scene_entry) in schedule_to_scene_entries {
       if let Some(scene_entry) = scene_entry {
         assert!(
@@ -208,8 +220,8 @@ mod tests {
       filter_by_silent_play(&schedule_to_scene_entries, &mandatory_silent_play);
     assert_eq!(
       filtered_schedule_to_scene_entries.len(),
-      4,
-      "Should have 4 entries for each scene",
+      5,
+      "Should have 5 entries for each scene",
     );
   }
 }
