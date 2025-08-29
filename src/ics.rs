@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::structures::{PersonToSceneAndScheduleEntry, SceneSchedulerError};
+use crate::structures::{PersonToSceneAndScheduleEntry, SceneSchedulerError, Scenes};
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone};
 use chrono_tz::{Europe::Zurich, Tz};
 use ics::properties::{Description, DtEnd, DtStart, Location, Status, Summary};
@@ -54,11 +54,16 @@ pub fn write_ics_file(
       if let Some(scene_entry) = scene_entry {
         description.push_str(format!("Rolle: {}\n", scene_entry.role).as_str());
       };
-      if schedule_entry.scenes.is_empty() {
-        description.push_str("Szenen: Alle Szenen\n");
-      } else {
-        description.push_str(format!("Szenen: {}\n", schedule_entry.scenes.join(", ")).as_str());
-      };
+      match &schedule_entry.scenes {
+        Scenes::Normal(scenes) => {
+          if scenes.is_empty() {
+            description.push_str("Szenen: Alle Szenen\n");
+          } else {
+            description.push_str(format!("Szenen: {}\n", scenes.join(", ")).as_str());
+          };
+        }
+        Scenes::Special(scene) => description.push_str(format!("{}\n", scene).as_str()),
+      }
       if let Some(note) = &schedule_entry.note {
         description.push_str(format!("Anmerkung: {}\n", note).as_str());
       };

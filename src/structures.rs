@@ -10,6 +10,12 @@ pub type Role = String;
 pub type PersonToSceneAndScheduleEntry<'a> =
   Vec<(Person, Vec<&'a (&'a ScheduleEntry, Option<&'a SceneEntry>)>)>;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum Scenes {
+  Normal(Vec<Scene>),
+  Special(Scene),
+}
+
 #[derive(Error, Debug)]
 pub enum SceneSchedulerError {
   #[error("Error while reading the excel file with calamine: {0}")]
@@ -58,7 +64,7 @@ impl SceneEntry {
 pub struct ScheduleEntry {
   pub date: NaiveDate,
   pub start_stop_time: (NaiveTime, Option<NaiveTime>),
-  pub scenes: Vec<Scene>,
+  pub scenes: Scenes,
   pub room: Option<Room>,
   pub note: Option<Note>,
   pub uuid: md5::Digest,
@@ -68,7 +74,7 @@ impl ScheduleEntry {
   pub fn new(
     date: NaiveDate,
     start_stop_time: (NaiveTime, Option<NaiveTime>),
-    scenes: Vec<Scene>,
+    scenes: Scenes,
     room: Option<Room>,
     note: Option<Note>,
   ) -> Self {
@@ -93,13 +99,16 @@ impl ScheduleEntry {
   }
 
   fn get_uuid(
-    scenes: &Vec<String>,
+    scenes: &Scenes,
     date: &NaiveDate,
     start_stop_time: &(NaiveTime, Option<NaiveTime>),
     room: &Option<String>,
     note: &Option<String>,
   ) -> md5::Digest {
-    let mut scenes = scenes.to_owned();
+    let mut scenes = match scenes {
+      Scenes::Normal(s) => s.clone(),
+      Scenes::Special(s) => vec![s.clone()],
+    };
     scenes.sort_unstable();
     let date_str = date.format("%Y-%m-%d").to_string();
     fn time_str(time: NaiveTime) -> String {

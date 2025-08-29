@@ -1,4 +1,4 @@
-use crate::structures::{Person, PersonToSceneAndScheduleEntry, SceneEntry, ScheduleEntry};
+use crate::structures::{Person, PersonToSceneAndScheduleEntry, SceneEntry, Scenes, ScheduleEntry};
 use chrono::NaiveDate;
 use std::collections::HashSet;
 
@@ -8,21 +8,26 @@ pub fn get_schedule_to_scene_entry<'a>(
 ) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
   let mut schedule_to_scene_entries = vec![];
   for schedule_entry in schedule_entries {
-    if schedule_entry.scenes.is_empty() {
-      // When no scenes are specified, all scenes are played or not yet known
-      schedule_to_scene_entries.push((schedule_entry, None));
-      continue;
-    }
-    for scene_entry in scene_entries {
-      if scene_entry
-        .scenes
-        .iter()
-        .any(|s| schedule_entry.scenes.contains(s))
-      {
-        schedule_to_scene_entries.push((schedule_entry, Some(scene_entry)));
-      } else {
-        //TODO: What to do if no match is found?
-        println!("No match for scene entry: {:?}", scene_entry);
+    match &schedule_entry.scenes {
+      Scenes::Special(_) => {
+        // When it is a special scene, all scenes are played or not yet known
+        schedule_to_scene_entries.push((schedule_entry, None));
+        continue;
+      }
+      Scenes::Normal(scenes) => {
+        if scenes.is_empty() {
+          // When no scenes are specified, all scenes are played or not yet known
+          schedule_to_scene_entries.push((schedule_entry, None));
+        } else {
+          for scene_entry in scene_entries {
+            if scene_entry.scenes.iter().any(|s| scenes.contains(s)) {
+              schedule_to_scene_entries.push((schedule_entry, Some(scene_entry)));
+            } else {
+              //TODO: What to do if no match is found?
+              println!("No match for scene entry: {:?}", scene_entry);
+            }
+          }
+        }
       }
     }
   }
@@ -60,24 +65,32 @@ pub fn filter_by_silent_play<'a>(
 ) -> Vec<(&'a ScheduleEntry, Option<&'a SceneEntry>)> {
   let mut filtered_schedule_to_scene_entries = vec![];
   for (schedule_entry, scene_entry) in schedule_to_scene_entries {
-    if schedule_entry.scenes.is_empty() {
-      // When no scenes are specified, all scenes are played or not yet known
-      filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
-      continue;
-    }
-    let any_non_silent_play = schedule_entry.scenes.iter().any(|scene| {
-      if let Some(scene_entry) = scene_entry {
-        scene_entry.is_scene_silent_play(scene) == Some(false)
-      } else {
-        // if scene entry is not known, assume it is not silent play
-        true
-      }
-    });
-    if any_non_silent_play {
-      filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
-    } else {
-      if schedule_entry.date >= *mandatory_silent_play {
+    match &schedule_entry.scenes {
+      Scenes::Special(_) => {
         filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
+        continue;
+      }
+      Scenes::Normal(scenes) => {
+        if scenes.is_empty() {
+          // When no scenes are specified, all scenes are played or not yet known
+          filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
+          continue;
+        }
+        let any_non_silent_play = scenes.iter().any(|scene| {
+          if let Some(scene_entry) = scene_entry {
+            scene_entry.is_scene_silent_play(scene) == Some(false)
+          } else {
+            // if scene entry is not known, assume it is not silent play
+            true
+          }
+        });
+        if any_non_silent_play {
+          filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
+        } else {
+          if schedule_entry.date >= *mandatory_silent_play {
+            filtered_schedule_to_scene_entries.push((*schedule_entry, *scene_entry));
+          }
+        }
       }
     }
   }
@@ -99,28 +112,28 @@ mod tests {
       ScheduleEntry::new(
         NaiveDate::from_ymd_opt(2022, 5, 1).unwrap(),
         (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
-        vec!["Scene 3".to_string()],
+        Scenes::Normal(vec!["Scene 3".to_string()]),
         Some("Room 1".to_string()),
         None,
       ),
       ScheduleEntry::new(
         NaiveDate::from_ymd_opt(2022, 7, 1).unwrap(),
         (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
-        vec!["Scene 4".to_string(), "Scene 5".to_string()],
+        Scenes::Normal(vec!["Scene 4".to_string(), "Scene 5".to_string()]),
         None,
         None,
       ),
       ScheduleEntry::new(
         NaiveDate::from_ymd_opt(2022, 8, 1).unwrap(),
         (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
-        vec![],
+        Scenes::Normal(vec![]),
         None,
         None,
       ),
       ScheduleEntry::new(
         NaiveDate::from_ymd_opt(2022, 4, 1).unwrap(),
         (NaiveTime::from_hms_opt(10, 0, 0).unwrap(), None),
-        vec![],
+        Scenes::Normal(vec![]),
         None,
         None,
       ),
@@ -165,15 +178,19 @@ mod tests {
     assert_eq!(schedule_to_scene_entries.len(), 7, "Should have 7 entries.",);
     for (schedule_entry, scene_entry) in schedule_to_scene_entries {
       if let Some(scene_entry) = scene_entry {
-        assert!(
-          schedule_entry
-            .scenes
-            .iter()
-            .any(|scene| scene_entry.scenes.contains(scene)),
-          "Some scene of schedule entry {:?} should be in scene entry {:?}",
-          schedule_entry.scenes,
-          scene_entry.scenes,
-        );
+        match &schedule_entry.scenes {
+          Scenes::Special(_) => {}
+          Scenes::Normal(scenes) => {
+            assert!(
+              scenes
+                .iter()
+                .any(|scene| scene_entry.scenes.contains(scene)),
+              "Some scene of schedule entry {:?} should be in scene entry {:?}",
+              schedule_entry.scenes,
+              scene_entry.scenes,
+            );
+          }
+        }
       }
     }
   }
@@ -197,15 +214,16 @@ mod tests {
             "Person {:?} should be the same as the person in the scene entry {:?}",
             person, scene_entry
           );
-          assert!(
-            schedule_entry
-              .scenes
-              .iter()
-              .any(|scene| scene_entry.scenes.contains(scene)),
-            "Some scene of schedule entry {:?} should be in scene entry {:?}",
-            schedule_entry.scenes,
-            scene_entry.scenes,
-          );
+          if let Scenes::Normal(ref scenes) = schedule_entry.scenes {
+            assert!(
+              scenes
+                .iter()
+                .any(|scene| scene_entry.scenes.contains(scene)),
+              "Some scene of schedule entry {:?} should be in scene entry {:?}",
+              schedule_entry.scenes,
+              scene_entry.scenes,
+            );
+          }
         }
       }
     }

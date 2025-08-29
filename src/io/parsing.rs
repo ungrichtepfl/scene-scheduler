@@ -1,23 +1,22 @@
 use crate::config::{SCENE_MARK, SILENT_PLAY_MARK};
-use crate::structures::{Note, Room, Scene, SceneSchedulerError, ScheduleEntry};
+use crate::structures::{Note, Room, SceneSchedulerError, Scenes, ScheduleEntry};
 use chrono::{NaiveDate, NaiveTime};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-fn parse_scenes(scenes: &str) -> Vec<Scene> {
-  if scenes.contains("Gesamtdurchlauf")
-    || scenes.contains("Aufführung")
-    || scenes.contains('x')
-    || scenes.trim() == "-"
-    || scenes.trim() == "–"
-    || scenes.trim() == ""
-  {
-    return vec![];
+fn parse_scenes(scenes: &str) -> Scenes {
+  if scenes.trim() == "" {
+    Scenes::Normal(vec![])
+  } else if scenes.trim().as_bytes()[0].is_ascii_digit() {
+    Scenes::Normal(
+      scenes
+        .split(&['/', ','])
+        .map(|s| s.trim().to_owned())
+        .collect(),
+    )
+  } else {
+    Scenes::Special(scenes.trim().to_owned())
   }
-  scenes
-    .split(&['/', ','])
-    .map(|s| s.trim().to_owned())
-    .collect()
 }
 
 fn parse_note(note: &str) -> Note {
@@ -230,9 +229,9 @@ pub mod excel {
     }
   }
 
-  fn parse_scenes_from_excel(scenes: &DataType) -> Vec<Scene> {
+  fn parse_scenes_from_excel(scenes: &DataType) -> Scenes {
     if scenes == &DataType::Empty {
-      vec![]
+      Scenes::Normal(vec![])
     } else {
       parse_scenes(&scenes.to_string())
     }

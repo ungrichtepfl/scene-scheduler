@@ -108,7 +108,7 @@ impl Sandbox for Gui {
       Message::ExcelPathChanged(value) => self.scheduler.config.excel_file_path = value,
       Message::OutDirChanged(value) => self.scheduler.config.out_dir = value,
       Message::ChooseExcelFile => {
-        let start_path = dirs::desktop_dir().map(|p| p.as_path().to_owned());
+        let start_path = dirs::desktop_dir().or_else(dirs::home_dir).map(|p| p.as_path().to_owned());
         let path = if let Some(start_path) = start_path {
           FileDialog::new()
             .set_location(&start_path)
